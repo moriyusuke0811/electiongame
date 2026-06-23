@@ -3,1141 +3,432 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>選挙シミュレーションゲーム</title>
-    
+    <title>本格選挙シミュレーション</title>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-900 text-white m-0 p-0">
+<body class="bg-gray-900 text-white m-0 p-0 font-sans min-h-screen">
 
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect } = React;
 
-        // ─── DATA ───────────────────────────────────────────────────
-        const TOTAL_TURNS = 24;
-        const ELECTION_PHASE_START = 20;
-        const MAJORITY = 156;
+const REGIONS = [
+  { id: 'hokkaido', name: '北海道', population: 520, seats: 8, lean: { economy: 10, diplomacy: 5, social: 20 } },
+  { id: 'tohoku', name: '東北', population: 860, seats: 13, lean: { economy: 20, diplomacy: -10, social: -20 } },
+  { id: 'kitakanto', name: '北関東', population: 1100, seats: 19, lean: { economy: 0, diplomacy: -20, social: -10 } },
+  { id: 'minamikanto', name: '南関東', population: 1600, seats: 23, lean: { economy: -20, diplomacy: 10, social: 30 } },
+  { id: 'tokyo', name: '東京', population: 1400, seats: 19, lean: { economy: -30, diplomacy: 30, social: 40 } },
+  { id: 'hokuriku', name: '北陸信越', population: 680, seats: 10, lean: { economy: 15, diplomacy: -30, social: -40 } },
+  { id: 'tokai', name: '東海', population: 1450, seats: 21, lean: { economy: -10, diplomacy: -5, social: 0 } },
+  { id: 'kinki', name: '近畿', population: 2050, seats: 28, lean: { economy: -40, diplomacy: -10, social: 10 } },
+  { id: 'chugoku', name: '中国', population: 720, seats: 10, lean: { economy: 25, diplomacy: -40, social: -50 } },
+  { id: 'shikoku', name: '四国', population: 360, seats: 6, lean: { economy: 30, diplomacy: -30, social: -40 } },
+  { id: 'kyushu', name: '九州', population: 1250, seats: 20, lean: { economy: 10, diplomacy: -20, social: -10 } }
+];
 
-        const PREFECTURES = [
-        {id:"hokkaido_p",name:"北海道",blockId:"hokkaido",pop:52},
-        {id:"aomori",name:"青森",blockId:"tohoku",pop:12},
-        {id:"iwate",name:"岩手",blockId:"tohoku",pop:12},
-        {id:"miyagi",name:"宮城",blockId:"tohoku",pop:23},
-        {id:"akita",name:"秋田",blockId:"tohoku",pop:10},
-        {id:"yamagata",name:"山形",blockId:"tohoku",pop:11},
-        {id:"fukushima",name:"福島",blockId:"tohoku",pop:19},
-        {id:"ibaraki",name:"茨城",blockId:"n_kanto",pop:29},
-        {id:"tochigi",name:"栃木",blockId:"n_kanto",pop:19},
-        {id:"gunma",name:"群馬",blockId:"n_kanto",pop:19},
-        {id:"saitama",name:"埼玉",blockId:"n_kanto",pop:73},
-        {id:"chiba",name:"千葉",blockId:"s_kanto",pop:63},
-        {id:"kanagawa",name:"神奈川",blockId:"s_kanto",pop:92},
-        {id:"yamanashi",name:"山梨",blockId:"s_kanto",pop:8},
-        {id:"tokyo_p",name:"東京",blockId:"tokyo",pop:140},
-        {id:"niigata",name:"新潟",blockId:"hokuriku",pop:22},
-        {id:"toyama",name:"富山",blockId:"hokuriku",pop:10},
-        {id:"ishikawa",name:"石川",blockId:"hokuriku",pop:11},
-        {id:"fukui",name:"福井",blockId:"hokuriku",pop:8},
-        {id:"nagano",name:"長野",blockId:"hokuriku",pop:20},
-        {id:"shizuoka",name:"静岡",blockId:"tokai",pop:36},
-        {id:"aichi",name:"愛知",blockId:"tokai",pop:75},
-        {id:"gifu",name:"岐阜",blockId:"tokai",pop:20},
-        {id:"mie",name:"三重",blockId:"tokai",pop:18},
-        {id:"shiga",name:"滋賀",blockId:"kinki",pop:14},
-        {id:"kyoto",name:"京都",blockId:"kinki",pop:26},
-        {id:"osaka",name:"大阪",blockId:"kinki",pop:88},
-        {id:"hyogo",name:"兵庫",blockId:"kinki",pop:55},
-        {id:"nara",name:"奈良",blockId:"kinki",pop:13},
-        {id:"wakayama",name:"和歌山",blockId:"kinki",pop:9},
-        {id:"tottori",name:"鳥取",blockId:"chugoku",pop:6},
-        {id:"shimane",name:"島根",blockId:"chugoku",pop:7},
-        {id:"okayama",name:"岡山",blockId:"chugoku",pop:19},
-        {id:"hiroshima",name:"広島",blockId:"chugoku",pop:28},
-        {id:"yamaguchi",name:"山口",blockId:"chugoku",pop:14},
-        {id:"tokushima",name:"徳島",blockId:"shikoku",pop:7},
-        {id:"kagawa",name:"香川",blockId:"shikoku",pop:10},
-        {id:"ehime",name:"愛媛",blockId:"shikoku",pop:14},
-        {id:"kochi",name:"高知",blockId:"shikoku",pop:7},
-        {id:"fukuoka",name:"福岡",blockId:"kyushu",pop:51},
-        {id:"saga",name:"佐賀",blockId:"kyushu",pop:8},
-        {id:"nagasaki",name:"長崎",blockId:"kyushu",pop:13},
-        {id:"kumamoto",name:"熊本",blockId:"kyushu",pop:18},
-        {id:"oita",name:"大分",blockId:"kyushu",pop:11},
-        {id:"miyazaki",name:"宮崎",blockId:"kyushu",pop:11},
-        {id:"kagoshima",name:"鹿児島",blockId:"kyushu",pop:16},
-        {id:"okinawa",name:"沖縄",blockId:"kyushu",pop:15},
-        ];
+const TOTAL_SEATS = REGIONS.reduce((sum, r) => sum + r.seats, 0);
+const MAX_TURNS = 24;
 
-        const BLOCKS = [
-        {id:"hokkaido",name:"北海道",seats:12,pop:220,econ:-25,diplo:-15,social:-20,
-        svgPath:"M 310 20 L 355 18 L 370 35 L 360 55 L 340 65 L 315 58 L 300 42 Z",lx:335,ly:44},
-        {id:"tohoku",name:"東北",seats:21,pop:360,econ:-35,diplo:15,social:30,
-        svgPath:"M 308 80 L 345 75 L 355 95 L 350 125 L 330 138 L 308 130 L 300 108 Z",lx:328,ly:107},
-        {id:"n_kanto",name:"北関東",seats:25,pop:420,econ:20,diplo:20,social:30,
-        svgPath:"M 298 148 L 335 143 L 342 162 L 330 175 L 305 172 L 295 160 Z",lx:318,ly:162},
-        {id:"s_kanto",name:"南関東",seats:51,pop:880,econ:-10,diplo:-25,social:-30,
-        svgPath:"M 296 182 L 335 178 L 345 200 L 338 220 L 312 225 L 293 210 Z",lx:318,ly:202},
-        {id:"tokyo",name:"東京",seats:17,pop:1050,econ:-20,diplo:-40,social:-50,
-        svgPath:"M 282 188 L 294 183 L 294 210 L 280 215 Z",lx:275,ly:200},
-        {id:"hokuriku",name:"北陸信越",seats:17,pop:290,econ:10,diplo:40,social:50,
-        svgPath:"M 248 138 L 285 132 L 294 152 L 285 168 L 255 165 L 242 150 Z",lx:267,ly:151},
-        {id:"tokai",name:"東海",seats:44,pop:750,econ:10,diplo:10,social:10,
-        svgPath:"M 250 172 L 286 168 L 292 185 L 282 205 L 255 208 L 243 192 Z",lx:267,ly:190},
-        {id:"kinki",name:"近畿",seats:54,pop:920,econ:-30,diplo:-10,social:-20,
-        svgPath:"M 215 178 L 248 172 L 256 192 L 248 215 L 220 218 L 207 202 Z",lx:232,ly:198},
-        {id:"chugoku",name:"中国",seats:20,pop:340,econ:30,diplo:50,social:60,
-        svgPath:"M 175 188 L 215 182 L 220 202 L 210 218 L 180 215 L 168 200 Z",lx:194,ly:202},
-        {id:"shikoku",name:"四国",seats:11,pop:190,econ:20,diplo:30,social:40,
-        svgPath:"M 210 225 L 248 220 L 252 240 L 238 255 L 212 250 L 202 238 Z",lx:228,ly:238},
-        {id:"kyushu",name:"九州",seats:37,pop:640,econ:0,diplo:30,social:20,
-        svgPath:"M 148 215 L 185 210 L 192 235 L 180 265 L 155 268 L 138 245 Z",lx:165,ly:240},
-        ];
+const ElectionSimulation = () => {
+  const [gameState, setGameState] = React.useState('setup'); 
+  const [turn, setTurn] = React.useState(1);
+  const [funds, setFunds] = React.useState(1000);
+  const [partyName, setPartyName] = React.useState('新党みらい');
+  const [ideology, setIdeology] = React.useState({ economy: 0, diplomacy: 0, social: 0 });
+  const [homeRegion, setHomeRegion] = React.useState('tokyo');
+  
+  const [support, setSupport] = React.useState({});
+  const [logs, setLogs] = React.useState([]);
+  const [selectedRegion, setSelectedRegion] = React.useState(null);
+  const [polls, setPolls] = React.useState(null);
+  const [electionResults, setElectionResults] = React.useState(null);
 
-        const RIVALS = [
-        {id:"jimin",name:"自由民政党",color:"#1d4ed8",econ:40,diplo:60,social:60,aggression:0.7,desc:"与党第一党。組織票と地方で強固な地盤"},
-        {id:"rikken",name:"立憲改革党",color:"#0891b2",econ:-50,diplo:-40,social:-60,aggression:0.5,desc:"リベラル野党。都市部・労働組合が基盤"},
-        {id:"ishin",name:"維新の会",color:"#f59e0b",econ:-20,diplo:10,social:-10,aggression:0.65,desc:"改革系。近畿圏で急速に拡大中"},
-        ];
+  React.useEffect(() => {
+    if (gameState === 'setup') {
+      const initialSupport = {};
+      REGIONS.forEach(r => {
+        initialSupport[r.id] = 5; 
+      });
+      setSupport(initialSupport);
+    }
+  }, [gameState]);
 
-        const MEDIA = [
-        {id:"A",name:"朝陽新聞",bias:"liberal",color:"#6366f1",desc:"リベラル系"},
-        {id:"B",name:"中央通信",bias:"neutral",color:"#64748b",desc:"中立・客観"},
-        {id:"C",name:"日本経済報",bias:"conservative",color:"#dc2626",desc:"保守系"},
-        ];
+  const calculateMatch = (regionId) => {
+    const region = REGIONS.find(r => r.id === regionId);
+    let matchScore = 0;
+    
+    matchScore += 100 - Math.abs(ideology.economy - region.lean.economy);
+    matchScore += 100 - Math.abs(ideology.diplomacy - region.lean.diplomacy);
+    matchScore += 100 - Math.abs(ideology.social - region.lean.social);
+    
+    return matchScore / 3; 
+  };
 
-        const NEWS_POOL = [
-        {type:"economy",title:"日銀、追加利上げを決定",body:"円高が進み輸出企業株が軒並み下落。経済政策論争が激化。",rivalPenalty:null,icon:"📉"},
-        {type:"economy",title:"失業率が過去最低水準に",body:"雇用状況の改善が続く。与党は経済実績をアピール。",rivalPenalty:null,icon:"📊"},
-        {type:"economy",title:"物価高騰止まらず",body:"食料品・光熱費が上昇。家計への影響が選挙の争点に。",rivalPenalty:null,icon:"🛒"},
-        {type:"scandal",title:"政治資金疑惑が浮上",body:"与党議員の裏金問題が報道。有権者の不信感が高まる。",rivalPenalty:"jimin",icon:"💸"},
-        {type:"scandal",title:"統一教会との関係が再燃",body:"保守系議員への批判が再び拡大。保守層に動揺。",rivalPenalty:"jimin",icon:"⚠️"},
-        {type:"scandal",title:"野党代表がSNSで失言",body:"ネット上で炎上。支持層離れが懸念される。",rivalPenalty:"rikken",icon:"🔥"},
-        {type:"diplomacy",title:"北朝鮮がミサイル発射",body:"安全保障論争が活発化。防衛強化派と対話派が対立。",rivalPenalty:null,icon:"🚀"},
-        {type:"diplomacy",title:"日米首脳会談が開催",body:"同盟強化を確認。外交政策が選挙の焦点に浮上。",rivalPenalty:null,icon:"🤝"},
-        {type:"social",title:"少子化が過去最悪水準に",body:"合計特殊出生率が0.9を下回る。子育て政策が争点に。",rivalPenalty:null,icon:"👶"},
-        {type:"social",title:"移民政策議論が再燃",body:"外国人労働者の急増で社会的摩擦が表面化。",rivalPenalty:null,icon:"🌏"},
-        {type:"election",title:"各党の公約出揃う",body:"消費税、防衛費、原発再稼働で与野党の立場が鮮明に。",rivalPenalty:null,icon:"📋"},
-        {type:"election",title:"投票率が前回比で上昇の見通し",body:"若者の政治参加意識の向上か。浮動票の行方が鍵に。",rivalPenalty:null,icon:"🗳️"},
-        ];
+  const startGame = () => {
+    let newSupport = { ...support };
+    REGIONS.forEach(r => {
+      const match = calculateMatch(r.id);
+      newSupport[r.id] = Math.max(1, Math.min(100, Math.round((match / 100) * 15)));
+    });
+    
+    newSupport[homeRegion] = Math.min(100, newSupport[homeRegion] + 15);
+    
+    setSupport(newSupport);
+    setGameState('playing');
+    addLog('党を結成し、政治活動を開始しました。');
+  };
 
-        const RIVAL_REACTIONS = {
-        economy:["「経済政策の抜本的見直しが必要だ」と声明","「我が党の政策の正しさが証明された」と表明","「政府の対応は不十分」と批判"],
-        scandal:["「政治の透明化が急務」と主張","「厳正な調査を求める」と要求","「政治不信の払拭に努める」と表明"],
-        diplomacy:["「外交の強化が最優先課題」と訴える","「対話による平和解決を求める」と声明","「抑止力の強化が不可欠」と主張"],
-        social:["「社会の多様性を尊重する政策を」と訴え","「伝統的価値観の維持が重要」と主張","「現実的な解決策が必要」と述べる"],
-        election:["「政権交代こそが最大の政治改革」と訴え","「政策の中身で勝負する」と表明","「有権者の審判を厳粛に受け止める」と述べる"],
-        };
+  const addLog = (msg) => {
+    setLogs(prev => [`第${turn}週: ${msg}`, ...prev].slice(0, 5));
+  };
 
-        const MEMBER_NAMES = ["田中一郎","佐藤花子","鈴木次郎","高橋美咲","伊藤太郎","山田陽子","中村健","小林愛","加藤誠","吉田涼","山口恵","松本剛","井上真","木村葵","林由紀"];
-        const SKILLS = ["演説力","組織力","広報","資金調達","政策立案"];
+  const nextTurn = () => {
+    if (turn >= MAX_TURNS) {
+      startElection();
+    } else {
+      setTurn(t => t + 1);
+    }
+  };
 
-        // ─── HELPERS ────────────────────────────────────────────────
-        function clamp(v,mn,mx){ return Math.max(mn,Math.min(mx,v)); }
+  const doAction = (type, regionId = null) => {
+    let newFunds = funds;
+    let newSupport = { ...support };
+    
+    if (type === 'speech') {
+      newSupport[regionId] = Math.min(100, newSupport[regionId] + Math.random() * 3 + 1);
+      addLog(`${REGIONS.find(r => r.id === regionId).name}で街頭演説を行いました。`);
+    } 
+    else if (type === 'cm' && funds >= 100) {
+      newFunds -= 100;
+      newSupport[regionId] = Math.min(100, newSupport[regionId] + Math.random() * 8 + 4);
+      addLog(`${REGIONS.find(r => r.id === regionId).name}に地方CMを投下しました。`);
+    }
+    else if (type === 'fundraise') {
+      const avgSupport = Object.values(support).reduce((a, b) => a + b, 0) / REGIONS.length;
+      const raised = Math.floor(Math.random() * 100 + avgSupport * 5);
+      newFunds += raised;
+      addLog(`資金集めパーティーを開催し、${raised}万円を集めました。`);
+    }
+    else if (type === 'national_net' && funds >= 300) {
+      newFunds -= 300;
+      REGIONS.forEach(r => {
+        newSupport[r.id] = Math.min(100, newSupport[r.id] + Math.random() * 4 + 1);
+      });
+      addLog(`全国ネット広告を展開しました。`);
+    } else {
+      return; 
+    }
 
-        function calcMatch(pe,pd,ps,block){
-        const d = Math.sqrt((pe-block.econ)**2+(pd-block.diplo)**2+(ps-block.social)**2);
-        return 1 - d/Math.sqrt(3*200*200);
-        }
+    setFunds(newFunds);
+    setSupport(newSupport);
+    nextTurn();
+    setSelectedRegion(null);
+  };
 
-        function ideologyLabel(v){
-        if(v<=-60)return"強左"; if(v<=-20)return"中道左"; if(v<=20)return"中道";
-        if(v<=60)return"中道右"; return"強右";
-        }
+  const conductPolls = () => {
+    const newPolls = {
+      a: { name: 'A新聞 (リベラル系)', bias: ideology.social > 0 ? 5 : -5 },
+      b: { name: 'B通信 (中立系)', bias: 0 },
+      c: { name: 'C新聞 (保守系)', bias: ideology.social < 0 ? 5 : -5 }
+    };
 
-        function supportColor(pct){
-        if(pct<5) return"#1e293b";
-        if(pct<15)return"#312e5a";
-        if(pct<25)return"#4c1d95";
-        if(pct<35)return"#7c3aed";
-        if(pct<45)return"#a855f7";
-        if(pct<55)return"#e11d48";
-        if(pct<65)return"#f97316";
-        return"#eab308";
-        }
+    Object.keys(newPolls).forEach(key => {
+      let estSeats = 0;
+      REGIONS.forEach(r => {
+        const estSupport = Math.max(0, Math.min(100, support[r.id] + newPolls[key].bias + (Math.random() * 6 - 3)));
+        estSeats += Math.round((estSupport / 100) * r.seats * 1.5); 
+      });
+      newPolls[key].seats = Math.min(TOTAL_SEATS, estSeats);
+    });
 
-        let _memberId = 1;
-        function makeMember(){
-        return {
-            id: _memberId++,
-            name: MEMBER_NAMES[Math.floor(Math.random()*MEMBER_NAMES.length)],
-            level: 1,
-            skill: SKILLS[Math.floor(Math.random()*SKILLS.length)],
-            location: "HQ",
-        };
-        }
+    setPolls(newPolls);
+    addLog('各社から情勢調査が発表されました。');
+    nextTurn();
+  };
 
-        // ─── JAPAN MAP ──────────────────────────────────────────────
-        function JapanMap({ support, partyColor, selectedBlock, onBlockClick, confirmedBlocks }) {
-        const [hovered, setHovered] = useState(null);
-        const confirmed = confirmedBlocks || [];
+  const startElection = () => {
+    setGameState('election');
+    let results = { totalSeats: 0, regions: {} };
+    
+    REGIONS.forEach(r => {
+      const finalSupport = Math.min(100, support[r.id] + (Math.random() * 10 - 5));
+      const wonSeats = Math.min(r.seats, Math.round((finalSupport / 100) * r.seats * 1.8));
+      results.regions[r.id] = { won: wonSeats, total: r.seats, support: finalSupport };
+      results.totalSeats += wonSeats;
+    });
+    
+    setElectionResults(results);
+  };
 
-        return (
-            <div style={{position:"relative",width:"100%",paddingBottom:"70%"}}>
-            <svg viewBox="120 10 260 280" style={{position:"absolute",inset:0,width:"100%",height:"100%"}}>
-                <rect x="120" y="10" width="260" height="280" fill="#0f172a" rx="6"/>
-                {BLOCKS.map(b => {
-                const pct = support[b.id] || 0;
-                const isConf = confirmed.includes(b.id);
-                const isSel = selectedBlock === b.id;
-                const isHov = hovered === b.id;
-                const col = isConf ? partyColor : supportColor(pct);
-                return (
-                    <g key={b.id}
-                    onClick={() => onBlockClick(b.id)}
-                    onMouseEnter={() => setHovered(b.id)}
-                    onMouseLeave={() => setHovered(null)}
-                    style={{cursor:"pointer"}}>
-                    <path d={b.svgPath} fill={col}
-                        stroke={isSel?"#fbbf24":isHov?"#94a3b8":"#1e293b"}
-                        strokeWidth={isSel?2:0.8}
-                        style={{transition:"fill 0.5s"}}/>
-                    <text x={b.lx} y={b.ly-4} textAnchor="middle" fontSize="5"
-                        fill="rgba(255,255,255,0.9)" fontWeight="600"
-                        style={{pointerEvents:"none",fontFamily:"sans-serif"}}>{b.name}</text>
-                    <text x={b.lx} y={b.ly+4} textAnchor="middle" fontSize="5"
-                        fill="rgba(255,255,255,0.75)"
-                        style={{pointerEvents:"none",fontFamily:"sans-serif"}}>
-                        {isConf ? "当確" : Math.round(pct)+"%"}
-                    </text>
-                    </g>
-                );
-                })}
-            </svg>
-            <div style={{position:"absolute",bottom:4,right:4,background:"rgba(17,24,39,0.9)",borderRadius:4,padding:"4px 6px",fontSize:9,color:"#9ca3af"}}>
-                {[["低","#312e5a"],["中","#7c3aed"],["高","#e11d48"],["強","#eab308"]].map(([l,c])=>(
-                <div key={l} style={{display:"flex",alignItems:"center",gap:4,marginBottom:1}}>
-                    <div style={{width:8,height:8,borderRadius:2,background:c}}/>
-                    <span>{l}</span>
-                </div>
-                ))}
+  const getHeatmapColor = (sup) => {
+    if (sup < 10) return 'bg-gray-700';
+    if (sup < 20) return 'bg-red-900';
+    if (sup < 30) return 'bg-red-800';
+    if (sup < 40) return 'bg-red-600';
+    if (sup < 50) return 'bg-red-500';
+    return 'bg-red-400';
+  };
+
+  const avgSupport = Math.round(Object.values(support).reduce((a, b) => a + b, 0) / Math.max(1, Object.keys(support).length));
+
+  if (gameState === 'setup') {
+    return (
+      <div className="min-h-screen bg-gray-900 text-white p-8">
+        <div className="max-w-2xl mx-auto bg-gray-800 rounded-xl p-8 shadow-2xl border border-gray-700">
+          <div className="text-5xl mb-4 text-center">🎌</div>
+          <h1 className="text-3xl font-bold text-center mb-8">日本の選挙シミュレーション</h1>
+          
+          <div className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium mb-2 text-gray-300">政党名</label>
+              <input 
+                type="text" 
+                value={partyName}
+                onChange={(e) => setPartyName(e.target.value)}
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-blue-500"
+              />
             </div>
-            </div>
-        );
-        }
 
-        // ─── NEWS MODAL ─────────────────────────────────────────────
-        function NewsModal({ news, onClose }) {
-        if (!news) return null;
-        const reactions = RIVALS.map(r => ({
-            ...r,
-            reaction: (RIVAL_REACTIONS[news.type]||RIVAL_REACTIONS.election)[Math.floor(Math.random()*3)]
-        }));
-        return (
-            <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.8)",zIndex:50,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
-            <div onClick={e=>e.stopPropagation()} style={{background:"#111827",border:"1px solid #374151",borderRadius:16,width:"100%",maxWidth:400,overflow:"hidden"}}>
-                <div style={{background:"#1f2937",padding:"12px 16px",fontSize:11,color:"#fbbf24",fontWeight:700,letterSpacing:2}}>
-                📰 今週のニュース
+            <div className="grid grid-cols-1 gap-6">
+              {[
+                { key: 'economy', label: '経済軸', left: '財政出動・格差是正', right: '構造改革・緊縮' },
+                { key: 'diplomacy', label: '外交軸', left: 'リベラル・対話', right: '保守・防衛強化' },
+                { key: 'social', label: '社会軸', left: '多様性・進歩主義', right: '伝統・保守主義' }
+              ].map(axis => (
+                <div key={axis.key} className="bg-gray-700/50 p-4 rounded-lg">
+                  <div className="flex justify-between text-sm mb-2">
+                    <span className="text-blue-400">{axis.left}</span>
+                    <span className="font-bold">{ideology[axis.key]}</span>
+                    <span className="text-red-400">{axis.right}</span>
+                  </div>
+                  <input 
+                    type="range" min="-100" max="100" 
+                    value={ideology[axis.key]}
+                    onChange={(e) => setIdeology({...ideology, [axis.key]: parseInt(e.target.value)})}
+                    className="w-full accent-blue-500"
+                  />
                 </div>
-                <div style={{padding:16}}>
-                <div style={{fontSize:24,marginBottom:8}}>{news.icon}</div>
-                <h3 style={{fontSize:15,fontWeight:700,color:"white",marginBottom:8}}>{news.title}</h3>
-                <p style={{fontSize:12,color:"#d1d5db",lineHeight:1.7,marginBottom:12}}>{news.body}</p>
-                <p style={{fontSize:10,color:"#6b7280",marginBottom:8,letterSpacing:1}}>各党の反応</p>
-                {reactions.map(r => (
-                    <div key={r.id} style={{display:"flex",alignItems:"center",gap:8,background:"#1f2937",borderRadius:8,padding:"8px 10px",marginBottom:6}}>
-                    <div style={{width:8,height:8,borderRadius:"50%",background:r.color,flexShrink:0}}/>
-                    <span style={{fontSize:10,color:"#9ca3af",width:80,flexShrink:0}}>{r.name}</span>
-                    <span style={{fontSize:10,color:"#d1d5db"}}>{r.reaction}</span>
-                    </div>
-                ))}
-                {news.rivalPenalty && (
-                    <div style={{background:"rgba(220,38,38,0.1)",border:"1px solid rgba(220,38,38,0.3)",borderRadius:8,padding:"8px 12px",marginTop:8,marginBottom:8}}>
-                    <p style={{fontSize:10,color:"#fca5a5"}}>
-                        ⚠ {RIVALS.find(r=>r.id===news.rivalPenalty)?.name}の支持率が各地で下落
-                    </p>
-                    </div>
-                )}
-                <button onClick={onClose}
-                    style={{width:"100%",padding:"8px",borderRadius:8,background:"#374151",color:"white",border:"none",cursor:"pointer",fontSize:13,fontWeight:700,marginTop:4}}>
-                    閉じる
+              ))}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2 text-gray-300">本拠地 (初期支持率ボーナス)</label>
+              <select 
+                value={homeRegion}
+                onChange={(e) => setHomeRegion(e.target.value)}
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-blue-500"
+              >
+                {REGIONS.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+              </select>
+            </div>
+
+            <button 
+              onClick={startGame}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-lg transition shadow-lg mt-8 text-lg"
+            >
+              結党して活動を開始する
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (gameState === 'playing') {
+    return (
+      <div className="min-h-screen bg-gray-900 text-white p-4 md:p-8">
+        <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-6">
+          
+          <div className="lg:col-span-1 space-y-4">
+            <div className="bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-lg">
+              <h2 className="text-xl font-bold mb-4">{partyName}</h2>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between border-b border-gray-700 pb-2">
+                  <span className="flex items-center text-gray-400"><span className="text-xl mr-2">📅</span> 期間</span>
+                  <span className="font-bold text-xl">{turn} / {MAX_TURNS}週</span>
+                </div>
+                <div className="flex items-center justify-between border-b border-gray-700 pb-2">
+                  <span className="flex items-center text-gray-400"><span className="mr-2">💴</span> 資金</span>
+                  <span className="font-bold text-xl text-yellow-400">{funds}万円</span>
+                </div>
+                <div className="flex items-center justify-between border-b border-gray-700 pb-2">
+                  <span className="flex items-center text-gray-400"><span className="mr-2">📈</span> 支持率</span>
+                  <span className="font-bold text-xl text-blue-400">{avgSupport}%</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-lg">
+              <h3 className="font-bold mb-4 flex items-center"><span className="mr-2">⚡</span> 全国アクション</h3>
+              <div className="space-y-3">
+                <button 
+                  onClick={() => doAction('fundraise')}
+                  className="w-full bg-gray-700 hover:bg-gray-600 py-3 rounded text-sm font-bold transition flex items-center justify-center"
+                >
+                  <span className="mr-2">💴</span> 資金パーティー (ターン消費)
                 </button>
-                </div>
-            </div>
-            </div>
-        );
-        }
-
-        // ─── SPEECH MODAL ───────────────────────────────────────────
-        function SpeechModal({ blockId, prefSupport, members, onSpeech, onClose }) {
-        const [selected, setSelected] = useState(null);
-        const block = BLOCKS.find(b => b.id === blockId);
-        const prefs = PREFECTURES.filter(p => p.blockId === blockId);
-        const blockMembers = members.filter(m => m.location === blockId).length;
-
-        return (
-            <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.8)",zIndex:50,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
-            <div onClick={e=>e.stopPropagation()} style={{background:"#111827",border:"1px solid #374151",borderRadius:16,width:"100%",maxWidth:340,overflow:"hidden"}}>
-                <div style={{background:"#1f2937",padding:"10px 14px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-                <span style={{fontSize:13,fontWeight:700,color:"white"}}>🎙 街頭演説 — {block?.name}</span>
-                <button onClick={onClose} style={{background:"none",border:"none",color:"#6b7280",cursor:"pointer",fontSize:18}}>×</button>
-                </div>
-                <div style={{padding:14}}>
-                <p style={{fontSize:11,color:"#9ca3af",marginBottom:10}}>演説する都道府県を選んでください</p>
-                {blockMembers > 0 && (
-                    <div style={{background:"rgba(22,163,74,0.15)",border:"1px solid rgba(22,163,74,0.4)",borderRadius:8,padding:"6px 10px",marginBottom:10,fontSize:11,color:"#86efac"}}>
-                    この地域に党員{blockMembers}人配置済み → 効果+50%
-                    </div>
-                )}
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
-                    {prefs.map(p => (
-                    <button key={p.id} onClick={() => setSelected(p.id)}
-                        style={{
-                        borderRadius:8,padding:"8px 10px",border:`1px solid ${selected===p.id?"#fbbf24":"#374151"}`,
-                        background:selected===p.id?"rgba(251,191,36,0.1)":"#1f2937",
-                        cursor:"pointer",textAlign:"left",
-                        }}>
-                        <div style={{fontSize:12,fontWeight:700,color:"white"}}>{p.name}</div>
-                        <div style={{fontSize:10,color:"#6b7280",marginTop:2}}>現在 {Math.round(prefSupport[p.id]||0)}%</div>
-                    </button>
-                    ))}
-                </div>
-                <button onClick={() => selected && onSpeech(selected)} disabled={!selected}
-                    style={{
-                    width:"100%",padding:"10px",borderRadius:8,border:"none",cursor:selected?"pointer":"not-allowed",
-                    background:selected?"#f59e0b":"#374151",color:selected?"#000":"#6b7280",fontSize:13,fontWeight:700,
-                    }}>
-                    {selected ? `${PREFECTURES.find(p=>p.id===selected)?.name}で演説する` : "都道府県を選んでください"}
+                <button 
+                  onClick={() => doAction('national_net')}
+                  disabled={funds < 300}
+                  className={`w-full py-3 rounded text-sm font-bold transition flex items-center justify-center ${funds >= 300 ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-700 opacity-50 cursor-not-allowed'}`}
+                >
+                  <span className="mr-2">📺</span> 全国ネット広告 (300万円)
                 </button>
-                </div>
-            </div>
-            </div>
-        );
-        }
-
-        // ─── MEMBER MODAL ───────────────────────────────────────────
-        function MemberModal({ members, funds, onRecruit, onDeploy, onClose }) {
-        const undeployed = members.filter(m => m.location === "HQ");
-        const deployed = members.filter(m => m.location !== "HQ");
-
-        return (
-            <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.8)",zIndex:50,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
-            <div onClick={e=>e.stopPropagation()} style={{background:"#111827",border:"1px solid #374151",borderRadius:16,width:"100%",maxWidth:440,maxHeight:"85vh",display:"flex",flexDirection:"column",overflow:"hidden"}}>
-                <div style={{background:"#1f2937",padding:"10px 14px",display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
-                <span style={{fontSize:13,fontWeight:700,color:"white"}}>👥 党員管理 — 合計 {members.length}人</span>
-                <button onClick={onClose} style={{background:"none",border:"none",color:"#6b7280",cursor:"pointer",fontSize:18,marginLeft:"auto"}}>×</button>
-                </div>
-                <div style={{flex:1,overflowY:"auto",padding:14}}>
-                {/* Recruit */}
-                <div style={{background:"#1f2937",borderRadius:12,padding:12,marginBottom:14}}>
-                    <p style={{fontSize:10,color:"#6b7280",marginBottom:8}}>党員を採用（-50万円/人）資金: {funds}万円</p>
-                    <div style={{display:"flex",gap:8}}>
-                    {[1,3,5].map(n => (
-                        <button key={n} onClick={() => onRecruit(n)} disabled={funds < 50*n}
-                        style={{
-                            flex:1,padding:"8px 4px",borderRadius:8,border:`1px solid ${funds>=50*n?"#22c55e":"#374151"}`,
-                            background:"transparent",color:funds>=50*n?"#22c55e":"#6b7280",
-                            cursor:funds>=50*n?"pointer":"not-allowed",fontSize:11,fontWeight:700,
-                        }}>
-                        +{n}人<br/><span style={{fontSize:9,opacity:.7}}>-{50*n}万円</span>
-                        </button>
-                    ))}
-                    </div>
-                </div>
-
-                {/* Undeployed */}
-                {undeployed.length > 0 && (
-                    <div style={{marginBottom:14}}>
-                    <p style={{fontSize:10,color:"#6b7280",marginBottom:8}}>未配置（{undeployed.length}人）— 地域に派遣して毎週自動で支持率を上昇</p>
-                    {undeployed.map(m => (
-                        <div key={m.id} style={{background:"#1f2937",borderRadius:10,padding:10,marginBottom:8}}>
-                        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
-                            <div style={{width:24,height:24,borderRadius:"50%",background:"#1d4ed8",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:"white",flexShrink:0}}>
-                            {m.name[0]}
-                            </div>
-                            <div>
-                            <div style={{fontSize:11,fontWeight:700,color:"white"}}>{m.name}</div>
-                            <div style={{fontSize:10,color:"#6b7280"}}>Lv.{m.level} 特技:{m.skill}</div>
-                            </div>
-                        </div>
-                        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:4}}>
-                            {BLOCKS.map(b => (
-                            <button key={b.id} onClick={() => onDeploy(m.id, b.id)}
-                                style={{padding:"3px 2px",borderRadius:4,border:"1px solid #374151",background:"transparent",color:"#9ca3af",fontSize:9,cursor:"pointer"}}>
-                                {b.name.slice(0,3)}
-                            </button>
-                            ))}
-                        </div>
-                        </div>
-                    ))}
-                    </div>
+                {MAX_TURNS - turn <= 4 && (
+                  <button 
+                    onClick={conductPolls}
+                    className="w-full bg-purple-600 hover:bg-purple-700 py-3 rounded text-sm font-bold transition flex items-center justify-center animate-pulse"
+                  >
+                    <span className="mr-2">📊</span> 情勢調査を見る (ターン消費)
+                  </button>
                 )}
+              </div>
+            </div>
 
-                {/* Deployed */}
-                {deployed.length > 0 && (
-                    <div>
-                    <p style={{fontSize:10,color:"#6b7280",marginBottom:8}}>配置済み（{deployed.length}人）</p>
-                    {deployed.map(m => {
-                        const b = BLOCKS.find(x => x.id === m.location);
-                        return (
-                        <div key={m.id} style={{display:"flex",alignItems:"center",gap:8,background:"#1f2937",borderRadius:8,padding:"8px 10px",marginBottom:6}}>
-                            <div style={{width:20,height:20,borderRadius:"50%",background:"#166534",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:"white"}}>
-                            {m.name[0]}
-                            </div>
-                            <span style={{fontSize:11,color:"white"}}>{m.name}</span>
-                            <span style={{fontSize:10,color:"#6b7280"}}>→ {b?.name}</span>
-                            <span style={{fontSize:10,color:"#22c55e",marginLeft:"auto"}}>+{(m.level*0.5).toFixed(1)}%/週</span>
-                            <button onClick={() => onDeploy(m.id, "HQ")}
-                            style={{fontSize:9,color:"#6b7280",background:"none",border:"none",cursor:"pointer"}}>召還</button>
-                        </div>
-                        );
-                    })}
+            <div className="bg-gray-800 p-4 rounded-xl border border-gray-700 h-48 overflow-y-auto">
+              <h3 className="text-sm font-bold text-gray-400 mb-2 sticky top-0 bg-gray-800">活動ログ</h3>
+              <div className="space-y-2 text-sm">
+                {logs.map((log, i) => <div key={i} className="text-gray-300">{log}</div>)}
+              </div>
+            </div>
+          </div>
+
+          <div className="lg:col-span-3">
+            <div className="bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-lg min-h-[600px] flex flex-col relative">
+              
+              {polls && (
+                <div className="absolute top-4 right-4 bg-gray-900 border border-gray-600 p-4 rounded-lg shadow-2xl z-10 w-64">
+                  <h4 className="font-bold mb-3 border-b border-gray-700 pb-1 flex items-center"><span className="mr-2">📰</span> 最新情勢調査</h4>
+                  <div className="space-y-2 text-sm">
+                    {Object.values(polls).map(p => (
+                      <div key={p.name} className="flex justify-between">
+                        <span className="text-gray-400">{p.name}</span>
+                        <span className="font-bold text-blue-400">{p.seats}議席</span>
+                      </div>
+                    ))}
+                    <div className="mt-2 pt-2 border-t border-gray-700 text-xs text-center text-gray-500">
+                      過半数: {Math.ceil(TOTAL_SEATS/2)}議席
                     </div>
-                )}
+                  </div>
                 </div>
-            </div>
-            </div>
-        );
-        }
+              )}
 
-        // ─── POLLING MODAL ──────────────────────────────────────────
-        function PollingModal({ support, setup, rivalSupport, onClose }) {
-        const [activeMedia, setActiveMedia] = useState("B");
-        const media = MEDIA.find(m => m.id === activeMedia);
-        const playerTilt = (setup.econ + setup.diplo + setup.social) / 3;
-        const biasCorr = media.bias==="liberal" ? -playerTilt/100*0.08 : media.bias==="conservative" ? playerTilt/100*0.06 : 0;
-
-        const pollingData = BLOCKS.map(b => {
-            const base = support[b.id] || 0;
-            const adj = clamp(base + biasCorr*20 + (Math.random()-0.5)*4, 1, 90);
-            return { ...b, predicted: Math.round(adj), projSeats: Math.min(b.seats, Math.round(b.seats*(adj/100)*1.2)) };
-        });
-        const totalProj = pollingData.reduce((s,b) => s+b.projSeats, 0);
-
-        return (
-            <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.8)",zIndex:40,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
-            <div style={{background:"#111827",border:"1px solid #374151",borderRadius:16,width:"100%",maxWidth:440,maxHeight:"85vh",display:"flex",flexDirection:"column",overflow:"hidden"}}>
-                <div style={{padding:"12px 16px",borderBottom:"1px solid #1f2937",display:"flex",alignItems:"center"}}>
-                <span style={{fontSize:14,fontWeight:700,color:"white"}}>📊 情勢調査</span>
-                <button onClick={onClose} style={{marginLeft:"auto",background:"none",border:"none",color:"#6b7280",cursor:"pointer",fontSize:20}}>×</button>
-                </div>
-                <div style={{padding:"10px 12px",borderBottom:"1px solid #1f2937",display:"flex",gap:8}}>
-                {MEDIA.map(m => (
-                    <button key={m.id} onClick={() => setActiveMedia(m.id)}
-                    style={{flex:1,padding:"6px",borderRadius:8,border:`1px solid ${m.color}`,
-                        color:m.color,background:activeMedia===m.id?m.color+"22":"transparent",
-                        opacity:activeMedia===m.id?1:0.5,cursor:"pointer",fontSize:11,fontWeight:700}}>
-                    {m.name}
-                    </button>
+              <h2 className="text-xl font-bold mb-6 flex items-center"><span className="mr-2">🗺️</span> 日本列島 支持率マップ</h2>
+              
+              <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 p-4">
+                {REGIONS.map(region => (
+                  <button
+                    key={region.id}
+                    onClick={() => setSelectedRegion(region.id)}
+                    className={`relative p-4 rounded-xl transition-all duration-300 border-2 ${selectedRegion === region.id ? 'border-white scale-105' : 'border-gray-700 hover:border-gray-500'} ${getHeatmapColor(support[region.id])}`}
+                  >
+                    <div className="font-bold text-lg mb-1">{region.name}</div>
+                    <div className="text-sm opacity-80">支持率: {Math.round(support[region.id])}%</div>
+                    {homeRegion === region.id && <div className="absolute top-2 right-2 text-xl">🏠</div>}
+                  </button>
                 ))}
-                </div>
-                <div style={{padding:"10px 12px",borderBottom:"1px solid #1f2937"}}>
-                <div style={{background:"#1f2937",borderRadius:12,padding:12,display:"flex",gap:16,alignItems:"center"}}>
-                    <div>
-                    <div style={{fontSize:10,color:"#6b7280"}}>予想獲得議席</div>
-                    <div style={{fontSize:32,fontWeight:700,color:setup.partyColor}}>{totalProj}</div>
-                    <div style={{fontSize:10,color:"#6b7280"}}>/ 過半数 {MAJORITY}</div>
-                    </div>
-                    <div style={{flex:1}}>
-                    <div style={{display:"flex",justifyContent:"space-between",fontSize:10,marginBottom:4}}>
-                        <span style={{color:setup.partyColor}}>{setup.partyName}</span>
-                        <span style={{color:"#fbbf24"}}>過半数 {MAJORITY}</span>
-                    </div>
-                    <div style={{height:12,background:"#374151",borderRadius:6,overflow:"hidden"}}>
-                        <div style={{height:"100%",background:setup.partyColor,width:`${Math.min(100,totalProj/309*100)}%`,borderRadius:6}}/>
-                    </div>
-                    <div style={{marginTop:4,fontSize:10,color:totalProj>=MAJORITY?"#22c55e":"#ef4444"}}>
-                        {totalProj>=MAJORITY?"▲ 過半数超え予測":"▼ 過半数届かず予測"}
-                    </div>
-                    </div>
-                </div>
-                </div>
-                <div style={{flex:1,overflowY:"auto",padding:12}}>
-                <p style={{fontSize:10,color:"#6b7280",marginBottom:8}}>ブロック別予測</p>
-                {[...pollingData].sort((a,b)=>b.predicted-a.predicted).map(b => (
-                    <div key={b.id} style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
-                    <span style={{fontSize:10,color:"#9ca3af",width:56,flexShrink:0}}>{b.name}</span>
-                    <div style={{flex:1,height:10,background:"#1f2937",borderRadius:5,overflow:"hidden"}}>
-                        <div style={{height:"100%",background:setup.partyColor,opacity:.7,width:`${b.predicted}%`}}/>
-                    </div>
-                    <span style={{fontSize:10,fontWeight:700,width:28,textAlign:"right",color:b.predicted>=40?setup.partyColor:"#6b7280"}}>{b.predicted}%</span>
-                    <span style={{fontSize:10,color:"#4b5563",width:44,textAlign:"right"}}>{b.projSeats}/{b.seats}議席</span>
-                    </div>
-                ))}
-                </div>
-            </div>
-            </div>
-        );
-        }
+              </div>
 
-        // ─── SETUP SCREEN ───────────────────────────────────────────
-        function SetupScreen({ onStart }) {
-        const [partyName, setPartyName] = useState("");
-        const [econ, setEcon] = useState(0);
-        const [diplo, setDiplo] = useState(0);
-        const [social, setSocial] = useState(0);
-        const [homeBlock, setHomeBlock] = useState(null);
-        const [partyColor, setPartyColor] = useState("#e11d48");
-
-        const canStart = partyName.trim().length > 0 && homeBlock !== null;
-
-        function handleStart() {
-            if (!canStart) return;
-            const support = {};
-            const prefSupport = {};
-            const rivalSupport = {};
-            BLOCKS.forEach(b => {
-            const m = calcMatch(econ,diplo,social,b);
-            support[b.id] = clamp(m*50+12+(b.id===homeBlock?15:0)+(Math.random()-0.5)*8, 3, 82);
-            });
-            PREFECTURES.forEach(p => {
-            prefSupport[p.id] = clamp((support[p.blockId]||20)+(Math.random()-0.5)*10, 2, 88);
-            });
-            RIVALS.forEach(r => {
-            const rs = {};
-            BLOCKS.forEach(b => {
-                rs[b.id] = clamp(calcMatch(r.econ,r.diplo,r.social,b)*55+8+(Math.random()-0.5)*10, 3, 75);
-            });
-            rivalSupport[r.id] = rs;
-            });
-            onStart({ partyName:partyName.trim(), econ, diplo, social, homeBlock, partyColor, support, prefSupport, rivalSupport });
-        }
-
-        return (
-            <div style={{minHeight:"100vh",background:"#030712",color:"white",fontFamily:"'Hiragino Kaku Gothic ProN',Meiryo,sans-serif",display:"flex",flexDirection:"column"}}>
-            <div style={{background:"#b91c1c",padding:"8px 16px",display:"flex",alignItems:"center",gap:12,flexShrink:0}}>
-                <span style={{fontSize:11,fontWeight:700,letterSpacing:2,border:"1px solid rgba(255,255,255,0.6)",padding:"2px 6px"}}>選挙SIM</span>
-                <span style={{fontSize:13,fontWeight:700}}>日本総選挙シミュレーション — 政党設立</span>
-            </div>
-            <div style={{flex:1,overflowY:"auto",padding:16,maxWidth:520,margin:"0 auto",width:"100%"}}>
-                {/* Party name */}
-                <div style={{background:"#111827",borderRadius:12,padding:14,border:"1px solid #1f2937",marginBottom:12}}>
-                <p style={{fontSize:10,color:"#6b7280",marginBottom:8,letterSpacing:2}}>政党名</p>
-                <input value={partyName} onChange={e=>setPartyName(e.target.value)} maxLength={20}
-                    placeholder="例：国民改革党"
-                    style={{width:"100%",background:"#1f2937",border:"1px solid #374151",borderRadius:8,padding:"8px 12px",color:"white",fontSize:15,fontWeight:700,fontFamily:"inherit",boxSizing:"border-box"}}/>
-                </div>
-
-                {/* Color */}
-                <div style={{background:"#111827",borderRadius:12,padding:14,border:"1px solid #1f2937",marginBottom:12}}>
-                <p style={{fontSize:10,color:"#6b7280",marginBottom:10,letterSpacing:2}}>政党カラー</p>
-                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                    {["#e11d48","#2563eb","#16a34a","#d97706","#7c3aed","#0891b2","#dc2626","#65a30d"].map(c=>(
-                    <button key={c} onClick={()=>setPartyColor(c)}
-                        style={{width:32,height:32,borderRadius:"50%",background:c,border:`2px solid ${partyColor===c?"white":"transparent"}`,cursor:"pointer"}}/>
-                    ))}
-                </div>
-                </div>
-
-                {/* Ideology */}
-                <div style={{background:"#111827",borderRadius:12,padding:14,border:"1px solid #1f2937",marginBottom:12}}>
-                <p style={{fontSize:10,color:"#6b7280",marginBottom:14,letterSpacing:2}}>政治思想（3軸）</p>
-                {[
-                    {label:"💴 経済軸",val:econ,set:setEcon,l:"財政出動・格差是正",r:"構造改革・緊縮"},
-                    {label:"🛡 外交・安保軸",val:diplo,set:setDiplo,l:"リベラル・対話",r:"保守・防衛強化"},
-                    {label:"🌸 社会軸",val:social,set:setSocial,l:"多様性・進歩主義",r:"伝統・保守主義"},
-                ].map(ax=>(
-                    <div key={ax.label} style={{marginBottom:16}}>
-                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
-                        <span style={{fontSize:11,color:"#9ca3af"}}>{ax.label}</span>
-                        <span style={{fontSize:11,fontWeight:700,color:"#fbbf24"}}>{ideologyLabel(ax.val)} ({ax.val>0?"+":""}{ax.val})</span>
-                    </div>
-                    <input type="range" min="-100" max="100" step="1" value={ax.val}
-                        onChange={e=>ax.set(parseInt(e.target.value))}
-                        style={{width:"100%",accentColor:partyColor}}/>
-                    <div style={{display:"flex",justifyContent:"space-between",marginTop:2}}>
-                        <span style={{fontSize:9,color:"#4b5563"}}>{ax.l}</span>
-                        <span style={{fontSize:9,color:"#4b5563"}}>{ax.r}</span>
-                    </div>
-                    </div>
-                ))}
-                </div>
-
-                {/* Home Block */}
-                <div style={{background:"#111827",borderRadius:12,padding:14,border:"1px solid #1f2937",marginBottom:14}}>
-                <p style={{fontSize:10,color:"#6b7280",marginBottom:10,letterSpacing:2}}>本拠地（+15%ボーナス）</p>
-                <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
-                    {BLOCKS.map(b=>{
-                    const match = calcMatch(econ,diplo,social,b);
-                    const isHome = homeBlock === b.id;
-                    return(
-                        <button key={b.id} onClick={()=>setHomeBlock(b.id)}
-                        style={{borderRadius:8,padding:"8px 10px",border:`1px solid ${isHome?"#e11d48":"#374151"}`,background:isHome?"rgba(220,38,38,0.1)":"#1f2937",cursor:"pointer",textAlign:"left"}}>
-                        <div style={{fontSize:11,fontWeight:700,color:"white"}}>{b.name}</div>
-                        <div style={{fontSize:9,color:"#6b7280",marginTop:2}}>{b.seats}議席</div>
-                        <div style={{fontSize:9,marginTop:4,color:match>=0.6?"#22c55e":match>=0.4?"#f59e0b":"#6b7280"}}>相性 {Math.round(match*100)}%</div>
-                        </button>
-                    );
-                    })}
-                </div>
-                </div>
-
-                <button onClick={handleStart} disabled={!canStart}
-                style={{width:"100%",padding:"12px",borderRadius:12,border:"none",cursor:canStart?"pointer":"not-allowed",
-                    background:canStart?partyColor:"#374151",color:canStart?"white":"#6b7280",fontSize:14,fontWeight:700,fontFamily:"inherit"}}>
-                選挙戦を開始する →
-                </button>
-            </div>
-            </div>
-        );
-        }
-
-        // ─── GAME SCREEN ────────────────────────────────────────────
-        function GameScreen({ setup, onElection }) {
-        const [turn, setTurn] = useState(1);
-        const [funds, setFunds] = useState(500);
-        const [support, setSupport] = useState(setup.support);
-        const [prefSupport, setPrefSupport] = useState(setup.prefSupport);
-        const [rivalSupport, setRivalSupport] = useState(setup.rivalSupport);
-        const [members, setMembers] = useState([makeMember(), makeMember()]);
-        const [selectedBlock, setSelectedBlock] = useState(null);
-        const [actionDone, setActionDone] = useState(false);
-        const [log, setLog] = useState(["第1週：選挙戦が始まった！"]);
-        const [showPolling, setShowPolling] = useState(false);
-        const [showMembers, setShowMembers] = useState(false);
-        const [showSpeech, setShowSpeech] = useState(false);
-        const [currentNews, setCurrentNews] = useState(null);
-        const [usedNewsIds, setUsedNewsIds] = useState([]);
-        const [notif, setNotif] = useState(null);
-        const [tab, setTab] = useState("map");
-
-        const isElectionPhase = turn > ELECTION_PHASE_START;
-        const avgSupport = Math.round(
-            BLOCKS.reduce((s,b)=>s+(support[b.id]||0)*b.pop,0) /
-            BLOCKS.reduce((s,b)=>s+b.pop,0)
-        );
-
-        function showNotif(msg, type="info") {
-            setNotif({msg,type});
-            setTimeout(()=>setNotif(null), 2500);
-        }
-
-        function addLog(msg) { setLog(l=>[`第${turn}週: ${msg}`, ...l.slice(0,29)]); }
-
-        function generateNews() {
-            const available = NEWS_POOL.map((n,i)=>({n,i})).filter(({i})=>!usedNewsIds.includes(i));
-            if (available.length === 0) return;
-            const pick = available[Math.floor(Math.random()*available.length)];
-            setUsedNewsIds(p=>[...p, pick.i]);
-            if (pick.n.rivalPenalty) {
-            setRivalSupport(prev => {
-                const next = {...prev};
-                const rs = {...(next[pick.n.rivalPenalty]||{})};
-                BLOCKS.forEach(b => { rs[b.id] = clamp((rs[b.id]||20)-(3+Math.random()*3), 1, 80); });
-                next[pick.n.rivalPenalty] = rs;
-                return next;
-            });
-            }
-            setCurrentNews(pick.n);
-        }
-
-        function applyPassiveBoosts(sup, prefSup) {
-            const ns = {...sup}, np = {...prefSup};
-            members.forEach(m => {
-            if (m.location === "HQ") return;
-            const boost = m.level * 0.5;
-            ns[m.location] = clamp((ns[m.location]||0)+boost, 1, 92);
-            PREFECTURES.filter(p=>p.blockId===m.location).forEach(p=>{
-                np[p.id] = clamp((np[p.id]||0)+boost*0.7, 1, 92);
-            });
-            });
-            return {ns, np};
-        }
-
-        function applyRivalAI(rs) {
-            const next = {...rs};
-            RIVALS.forEach(r => {
-            if (Math.random() > r.aggression) return;
-            const b = BLOCKS[Math.floor(Math.random()*BLOCKS.length)];
-            next[r.id] = {...(next[r.id]||{})};
-            next[r.id][b.id] = clamp((next[r.id][b.id]||15)+1+Math.random()*3, 1, 78);
-            });
-            return next;
-        }
-
-        function nextTurn() {
-            if (turn >= TOTAL_TURNS) { onElection(support, prefSupport, rivalSupport); return; }
-            const {ns, np} = applyPassiveBoosts(support, prefSupport);
-            BLOCKS.forEach(b=>{ ns[b.id]=clamp((ns[b.id]||0)+(Math.random()-0.52)*1.2,1,92); });
-            PREFECTURES.forEach(p=>{ np[p.id]=clamp((np[p.id]||0)+(Math.random()-0.52)*1.5,1,92); });
-            setSupport(ns); setPrefSupport(np);
-            setRivalSupport(prev=>applyRivalAI(prev));
-            const nt = turn+1;
-            setTurn(nt); setActionDone(false); setSelectedBlock(null);
-            if (nt % 2 === 0) generateNews();
-            if (nt === ELECTION_PHASE_START+1) { addLog("⚡ 選挙期間突入！情勢調査解禁"); showNotif("選挙期間突入！情勢調査を確認しよう","success"); }
-            else { addLog("次の週が始まった"); }
-        }
-
-        function doSpeech(prefId) {
-            const pref = PREFECTURES.find(p=>p.id===prefId);
-            const blockMembers = members.filter(m=>m.location===pref.blockId).length;
-            const base = 2.5+Math.random()*3;
-            const gain = base*(1+blockMembers*0.5);
-            setSupport(prev=>({...prev,[pref.blockId]:clamp((prev[pref.blockId]||0)+gain*0.4,1,92)}));
-            setPrefSupport(prev=>({...prev,[prefId]:clamp((prev[prefId]||0)+gain,1,92)}));
-            addLog(`${pref.name}で街頭演説 +${gain.toFixed(1)}%`);
-            showNotif(`${pref.name}で演説！+${gain.toFixed(1)}%`,"success");
-            setShowSpeech(false); setSelectedBlock(null);
-            setActionDone(true);
-        }
-
-        function doCM(blockId) {
-            if (funds < 80) { showNotif("資金不足（80万円必要）","error"); return; }
-            const gain = 5+Math.random()*5;
-            const b = BLOCKS.find(x=>x.id===blockId);
-            setSupport(prev=>({...prev,[blockId]:clamp((prev[blockId]||0)+gain,1,92)}));
-            PREFECTURES.filter(p=>p.blockId===blockId).forEach(p=>{
-            setPrefSupport(prev=>({...prev,[p.id]:clamp((prev[p.id]||0)+gain*0.8,1,92)}));
-            });
-            setFunds(f=>f-80);
-            addLog(`${b.name}でCM投下 +${gain.toFixed(1)}%`);
-            showNotif(`${b.name}でCM効果！`,"success");
-            setSelectedBlock(null); setActionDone(true);
-        }
-
-        function doNetAd() {
-            if (funds < 120) { showNotif("資金不足（120万円必要）","error"); return; }
-            const gain = 1+Math.random()*1.5;
-            setSupport(prev=>{const n={...prev};BLOCKS.forEach(b=>{n[b.id]=clamp((prev[b.id]||0)+gain,1,92);});return n;});
-            setFunds(f=>f-120);
-            addLog(`ネット広告 全国+${gain.toFixed(1)}%`);
-            showNotif("ネット広告が全国に拡散！","success");
-            setActionDone(true);
-        }
-
-        function doPolicy() {
-            if (funds < 60) { showNotif("資金不足（60万円必要）","error"); return; }
-            const gain = 0.8+Math.random()*1.2;
-            setSupport(prev=>{const n={...prev};BLOCKS.forEach(b=>{n[b.id]=clamp((prev[b.id]||0)+gain,1,92);});return n;});
-            setFunds(f=>f-60);
-            addLog(`政策発表 全国+${gain.toFixed(1)}%`);
-            showNotif("政策発表が話題に！","success");
-            setActionDone(true);
-        }
-
-        function doFundraise() {
-            const earn = 80+Math.floor(Math.random()*100);
-            setFunds(f=>f+earn);
-            addLog(`資金パーティー +${earn}万円`);
-            showNotif(`${earn}万円調達！`,"info");
-            setActionDone(true);
-        }
-
-        function recruitMembers(n) {
-            if (funds < 50*n) { showNotif("資金不足","error"); return; }
-            setMembers(prev=>[...prev,...Array.from({length:n},()=>makeMember())]);
-            setFunds(f=>f-50*n);
-            showNotif(`${n}人の党員を採用！`,"success");
-            addLog(`党員${n}人採用`);
-        }
-
-        function deployMember(memberId, blockId) {
-            setMembers(prev=>prev.map(m=>m.id===memberId?{...m,location:blockId}:m));
-            if (blockId === "HQ") showNotif("党員を本部に召還","info");
-            else showNotif(`${BLOCKS.find(b=>b.id===blockId)?.name}に党員を派遣！`,"success");
-        }
-
-        const selBlock = BLOCKS.find(b=>b.id===selectedBlock);
-        const rivalsInfo = RIVALS.map(r=>({
-            ...r,
-            avg: Math.round(BLOCKS.reduce((s,b)=>s+(rivalSupport[r.id]||{})[b.id]*b.pop,0)/BLOCKS.reduce((s,b)=>s+b.pop,0))
-        }));
-
-        const S = {
-            root:{minHeight:"100vh",background:"#030712",color:"white",fontFamily:"'Hiragino Kaku Gothic ProN',Meiryo,sans-serif",display:"flex",flexDirection:"column",height:"100vh",overflow:"hidden"},
-            topBar:{background:"#111827",borderBottom:"1px solid #1f2937",padding:"6px 12px",display:"flex",alignItems:"center",gap:8,flexShrink:0},
-            body:{flex:1,display:"flex",overflow:"hidden"},
-            leftPanel:{width:152,background:"#111827",borderRight:"1px solid #1f2937",display:"flex",flexDirection:"column",flexShrink:0},
-            center:{flex:1,display:"flex",flexDirection:"column",background:"#030712",position:"relative",overflow:"hidden"},
-            rightPanel:{width:156,background:"#111827",borderLeft:"1px solid #1f2937",display:"flex",flexDirection:"column",flexShrink:0},
-        };
-
-        return (
-            <div style={S.root}>
-            {/* TOP BAR */}
-            <div style={S.topBar}>
-                <div style={{width:10,height:10,borderRadius:"50%",background:setup.partyColor,flexShrink:0}}/>
-                <span style={{fontSize:13,fontWeight:700}}>{setup.partyName}</span>
-                <span style={{fontSize:10,padding:"2px 8px",borderRadius:10,background:isElectionPhase?"#7f1d1d":"#1f2937",color:isElectionPhase?"#fca5a5":"#6b7280",marginLeft:4}}>
-                {isElectionPhase?"⚡ 選挙期間":"通常活動"}
-                </span>
-                <span style={{fontSize:11,fontWeight:700,color:"#fbbf24",marginLeft:"auto"}}>第{turn}/{TOTAL_TURNS}週</span>
-                <span style={{fontSize:10,color:"#6b7280"}}>残{TOTAL_TURNS-turn+1}週</span>
-            </div>
-
-            <div style={S.body}>
-                {/* LEFT PANEL */}
-                <div style={S.leftPanel}>
-                <div style={{padding:8,flex:1,overflowY:"auto"}}>
-                    {/* Stats */}
-                    {[
-                    {label:"全国平均支持率",val:`${avgSupport}%`,col:avgSupport>=30?"#22c55e":"#ef4444"},
-                    {label:"資金",val:`${funds}万円`,col:funds>=100?"#60a5fa":"#ef4444"},
-                    {label:"党員 / 配置",val:`${members.length}人 / ${members.filter(m=>m.location!=="HQ").length}人`,col:"#c084fc"},
-                    ].map(s=>(
-                    <div key={s.label} style={{background:"#1f2937",borderRadius:8,padding:"7px 8px",marginBottom:6}}>
-                        <div style={{fontSize:9,color:"#6b7280",marginBottom:2}}>{s.label}</div>
-                        <div style={{fontSize:12,fontWeight:700,color:s.col}}>{s.val}</div>
-                    </div>
-                    ))}
-
-                    {/* Tabs */}
-                    <div style={{display:"flex",border:"1px solid #374151",borderRadius:8,overflow:"hidden",marginBottom:8,marginTop:2}}>
-                    {[["map","地図"],["rivals","他党"],["log","記録"]].map(([t,l])=>(
-                        <button key={t} onClick={()=>setTab(t)}
-                        style={{flex:1,padding:"4px 0",fontSize:9,background:tab===t?"#374151":"transparent",color:tab===t?"white":"#6b7280",border:"none",cursor:"pointer"}}>
-                        {l}
-                        </button>
-                    ))}
-                    </div>
-
-                    {tab==="map" && BLOCKS.sort((a,b)=>(support[b.id]||0)-(support[a.id]||0)).map(b=>(
-                    <div key={b.id} style={{marginBottom:6}}>
-                        <div style={{display:"flex",justifyContent:"space-between",fontSize:9,marginBottom:2}}>
-                        <span style={{color:"#9ca3af"}}>{b.name}</span>
-                        <span style={{color:support[b.id]>=30?"#22c55e":"#6b7280",fontWeight:700}}>{Math.round(support[b.id]||0)}%</span>
-                        </div>
-                        <div style={{height:4,background:"#1f2937",borderRadius:2,overflow:"hidden"}}>
-                        <div style={{height:"100%",background:setup.partyColor,opacity:.8,width:`${Math.round(support[b.id]||0)}%`,transition:"width .5s"}}/>
-                        </div>
-                    </div>
-                    ))}
-
-                    {tab==="rivals" && (
-                    <div>
-                        {rivalsInfo.map(r=>(
-                        <div key={r.id} style={{background:"#1f2937",borderRadius:8,padding:"7px 8px",marginBottom:6}}>
-                            <div style={{display:"flex",alignItems:"center",gap:4,marginBottom:4}}>
-                            <div style={{width:6,height:6,borderRadius:"50%",background:r.color}}/>
-                            <span style={{fontSize:10,fontWeight:700,color:"white"}}>{r.name}</span>
-                            </div>
-                            <div style={{fontSize:10,color:"#9ca3af"}}>全国 <span style={{color:r.color,fontWeight:700}}>{r.avg}%</span></div>
-                            <div style={{height:3,background:"#374151",borderRadius:2,overflow:"hidden",marginTop:4}}>
-                            <div style={{height:"100%",background:r.color,opacity:.7,width:`${r.avg}%`}}/>
-                            </div>
-                            <div style={{fontSize:9,color:"#6b7280",marginTop:2}}>{r.desc}</div>
-                        </div>
-                        ))}
-                        <div style={{background:"#1f2937",borderRadius:8,padding:"7px 8px",marginBottom:6}}>
-                        <div style={{fontSize:10,fontWeight:700,color:"white",marginBottom:2}}>我が党</div>
-                        <div style={{fontSize:10,color:"#9ca3af"}}>全国 <span style={{color:setup.partyColor,fontWeight:700}}>{avgSupport}%</span></div>
-                        <div style={{height:3,background:"#374151",borderRadius:2,overflow:"hidden",marginTop:4}}>
-                            <div style={{height:"100%",background:setup.partyColor,width:`${avgSupport}%`}}/>
-                        </div>
-                        </div>
-                    </div>
-                    )}
-
-                    {tab==="log" && log.map((l,i)=>(
-                    <div key={i} style={{fontSize:9,lineHeight:1.6,color:i===0?"#e2e8f0":"#4b5563",marginBottom:3}}>{l}</div>
-                    ))}
-                </div>
-                </div>
-
-                {/* CENTER MAP */}
-                <div style={S.center}>
-                <div style={{flex:1,padding:8}}>
-                    <JapanMap support={support} partyColor={setup.partyColor}
-                    selectedBlock={selectedBlock} onBlockClick={id=>{ if(!actionDone){setSelectedBlock(prev=>prev===id?null:id);} }}/>
-                </div>
-
-                {/* Block popup */}
-                {selectedBlock && selBlock && !actionDone && (
-                    <div style={{position:"absolute",bottom:8,left:"50%",transform:"translateX(-50%)",width:240,background:"#1e293b",border:"1px solid #334155",borderRadius:12,padding:12,boxShadow:"0 8px 32px rgba(0,0,0,.5)",zIndex:20}}>
-                    <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
-                        <div style={{width:8,height:8,borderRadius:"50%",background:setup.partyColor}}/>
-                        <span style={{fontSize:13,fontWeight:700,color:"white"}}>{selBlock.name}</span>
-                        <span style={{fontSize:10,color:"#6b7280",marginLeft:"auto"}}>{Math.round(support[selectedBlock]||0)}%</span>
-                    </div>
-                    <button onClick={()=>setShowSpeech(true)}
-                        style={{width:"100%",padding:"8px 12px",background:"#0f172a",border:"1px solid #334155",borderRadius:8,cursor:"pointer",textAlign:"left",marginBottom:6,color:"white"}}>
-                        <span style={{fontSize:12,fontWeight:700,color:"#fcd34d"}}>🎙 街頭演説</span>
-                        <span style={{fontSize:10,color:"#6b7280",marginLeft:8}}>無料 / 都道府県別</span>
+              {selectedRegion && (
+                <div className="mt-6 p-6 bg-gray-900 rounded-lg border border-gray-700 animate-fadeIn">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-xl font-bold text-blue-400">
+                      {REGIONS.find(r => r.id === selectedRegion).name}での活動
+                    </h3>
+                    <button onClick={() => setSelectedRegion(null)} className="text-gray-500 hover:text-white">✕</button>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <button 
+                      onClick={() => doAction('speech', selectedRegion)}
+                      className="bg-gray-800 hover:bg-gray-700 p-4 rounded-lg border border-gray-600 text-left transition"
+                    >
+                      <div className="font-bold mb-1 flex items-center"><span className="text-center mr-2">👥</span> 街頭演説</div>
+                      <div className="text-xs text-gray-400">資金0 / 支持率微増</div>
                     </button>
-                    <button onClick={()=>doCM(selectedBlock)}
-                        style={{width:"100%",padding:"8px 12px",background:"#0f172a",border:"1px solid #334155",borderRadius:8,cursor:"pointer",textAlign:"left",color:"white"}}>
-                        <span style={{fontSize:12,fontWeight:700,color:"#93c5fd"}}>📺 地方CM</span>
-                        <span style={{fontSize:10,color:"#6b7280",marginLeft:8}}>-80万円 / +5〜10%</span>
+                    <button 
+                      onClick={() => doAction('cm', selectedRegion)}
+                      disabled={funds < 100}
+                      className={`p-4 rounded-lg border text-left transition ${funds >= 100 ? 'bg-gray-800 hover:bg-gray-700 border-gray-600' : 'bg-gray-900 border-gray-800 opacity-50 cursor-not-allowed'}`}
+                    >
+                      <div className="font-bold mb-1 flex items-center"><span className="text-center mr-2">📰</span> 地方CM</div>
+                      <div className="text-xs text-gray-400">資金100万 / 支持率大増</div>
                     </button>
-                    <button onClick={()=>setSelectedBlock(null)}
-                        style={{width:"100%",marginTop:8,fontSize:10,color:"#4b5563",background:"none",border:"none",cursor:"pointer"}}>
-                        キャンセル
-                    </button>
-                    </div>
-                )}
-
-                {actionDone && (
-                    <div style={{position:"absolute",bottom:8,left:"50%",transform:"translateX(-50%)",fontSize:11,color:"#6b7280",background:"rgba(17,24,39,0.85)",padding:"6px 14px",borderRadius:20,whiteSpace:"nowrap"}}>
-                    行動完了 → 右の「次の週へ」を押してください
-                    </div>
-                )}
+                  </div>
                 </div>
-
-                {/* RIGHT PANEL */}
-                <div style={S.rightPanel}>
-                <div style={{padding:8,flex:1,overflowY:"auto",display:"flex",flexDirection:"column",gap:6}}>
-                    <p style={{fontSize:9,color:"#4b5563",letterSpacing:2,marginBottom:2}}>全国アクション</p>
-
-                    {[
-                    {label:"🌐 ネット広告",sub:"-120万円 / 全国",fn:doNetAd,col:"#3b82f6"},
-                    {label:"📢 政策発表",sub:"-60万円 / 全国",fn:doPolicy,col:"#8b5cf6"},
-                    {label:"💰 資金パーティー",sub:"+80〜180万円",fn:doFundraise,col:"#eab308"},
-                    ].map(a=>(
-                    <button key={a.label} onClick={a.fn} disabled={actionDone}
-                        style={{
-                        width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${actionDone?"#374151":a.col}`,
-                        background:actionDone?"transparent":a.col+"18",color:actionDone?"#6b7280":a.col,
-                        cursor:actionDone?"not-allowed":"pointer",textAlign:"left",opacity:actionDone?0.3:1,
-                        }}>
-                        <div style={{fontSize:11,fontWeight:700}}>{a.label}</div>
-                        <div style={{fontSize:9,opacity:.6,marginTop:2}}>{a.sub}</div>
-                    </button>
-                    ))}
-
-                    <button onClick={()=>setShowMembers(true)}
-                    style={{width:"100%",padding:"8px 10px",borderRadius:8,border:"1px solid #7c3aed",background:"rgba(124,58,237,0.1)",color:"#c4b5fd",cursor:"pointer",textAlign:"left"}}>
-                    <div style={{fontSize:11,fontWeight:700}}>👥 党員管理</div>
-                    <div style={{fontSize:9,opacity:.6,marginTop:2}}>{members.length}人 / 配置{members.filter(m=>m.location!=="HQ").length}人</div>
-                    </button>
-
-                    {isElectionPhase && (
-                    <button onClick={()=>setShowPolling(true)}
-                        style={{width:"100%",padding:"8px 10px",borderRadius:8,border:"1px solid #6366f1",background:"rgba(99,102,241,0.1)",color:"#a5b4fc",cursor:"pointer",textAlign:"left"}}>
-                        <div style={{fontSize:11,fontWeight:700}}>📊 情勢調査</div>
-                        <div style={{fontSize:9,opacity:.6,marginTop:2}}>各社の予測を確認</div>
-                    </button>
-                    )}
-
-                    <div style={{borderTop:"1px solid #1f2937",paddingTop:8,marginTop:2}}>
-                    <button onClick={nextTurn}
-                        style={{width:"100%",padding:"10px",borderRadius:8,border:"none",background:setup.partyColor,color:"white",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
-                        {turn>=TOTAL_TURNS?"投開票へ →":"次の週へ →"}
-                    </button>
-                    </div>
-
-                    {/* Rival quick view */}
-                    <div style={{borderTop:"1px solid #1f2937",paddingTop:8}}>
-                    <p style={{fontSize:9,color:"#4b5563",letterSpacing:1,marginBottom:6}}>他党トップ地盤</p>
-                    {RIVALS.map(r=>{
-                        const topB = BLOCKS.reduce((top,b)=>{
-                        const cur = (rivalSupport[r.id]||{})[b.id]||0;
-                        const topCur = (rivalSupport[r.id]||{})[top.id]||0;
-                        return cur>topCur?b:top;
-                        },BLOCKS[0]);
-                        return(
-                        <div key={r.id} style={{marginBottom:8}}>
-                            <div style={{display:"flex",alignItems:"center",gap:4,marginBottom:1}}>
-                            <div style={{width:6,height:6,borderRadius:"50%",background:r.color,flexShrink:0}}/>
-                            <span style={{fontSize:9,color:"#9ca3af",flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.name}</span>
-                            <span style={{fontSize:9,fontWeight:700,color:r.color}}>
-                                {Math.round((rivalSupport[r.id]||{})[topB.id]||0)}%
-                            </span>
-                            </div>
-                            <div style={{fontSize:9,color:"#4b5563",paddingLeft:10}}>{topB.name}が最強</div>
-                        </div>
-                        );
-                    })}
-                    </div>
-                </div>
-                </div>
+              )}
             </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-            {/* NOTIFICATION */}
-            {notif && (
-                <div style={{
-                position:"fixed",top:48,left:"50%",transform:"translateX(-50%)",zIndex:60,
-                padding:"6px 16px",borderRadius:20,fontSize:12,fontWeight:700,color:"white",pointerEvents:"none",
-                background:notif.type==="success"?"#16a34a":notif.type==="error"?"#dc2626":"#1d4ed8",
-                }}>
-                {notif.msg}
-                </div>
-            )}
+  if (gameState === 'election') {
+    const isWin = electionResults.totalSeats >= Math.ceil(TOTAL_SEATS / 2);
+    return (
+      <div className="min-h-screen bg-gray-900 text-white p-8 flex flex-col items-center justify-center">
+        <div className="max-w-4xl w-full">
+          <div className="text-center mb-12">
+            <h1 className="text-4xl font-black text-red-500 mb-2 tracking-widest">開票速報</h1>
+            <p className="text-xl text-gray-400">第4X回 衆議院議員総選挙</p>
+          </div>
 
-            {currentNews && <NewsModal news={currentNews} onClose={()=>setCurrentNews(null)}/>}
-            {showSpeech && selectedBlock && (
-                <SpeechModal blockId={selectedBlock} prefSupport={prefSupport} members={members}
-                onSpeech={doSpeech} onClose={()=>setShowSpeech(false)}/>
-            )}
-            {showMembers && (
-                <MemberModal members={members} funds={funds} onRecruit={recruitMembers}
-                onDeploy={deployMember} onClose={()=>setShowMembers(false)}/>
-            )}
-            {showPolling && (
-                <PollingModal support={support} setup={setup} rivalSupport={rivalSupport}
-                onClose={()=>setShowPolling(false)}/>
-            )}
+          <div className={`p-8 rounded-2xl text-center mb-8 border-4 ${isWin ? 'bg-blue-900/30 border-blue-500' : 'bg-red-900/30 border-red-500'}`}>
+            <h2 className="text-3xl font-bold mb-4">{partyName}</h2>
+            <div className="text-6xl font-black mb-2">{electionResults.totalSeats} <span className="text-2xl font-normal text-gray-400">/ {TOTAL_SEATS} 議席</span></div>
+            <div className="text-2xl mt-4 font-bold">
+              {isWin ? <span className="text-blue-400">過半数獲得！政権交代！</span> : <span className="text-red-400">過半数届かず...敗北</span>}
             </div>
-        );
-        }
+          </div>
 
-        // ─── ELECTION SCREEN ────────────────────────────────────────
-        function ElectionScreen({ setup, finalSupport, finalRivalSupport, onRestart }) {
-        const [confirmedBlocks, setConfirmedBlocks] = useState([]);
-        const [displaySupport, setDisplaySupport] = useState(Object.fromEntries(BLOCKS.map(b=>[b.id,0])));
-        const [totalSeats, setTotalSeats] = useState(0);
-        const [phase, setPhase] = useState("counting");
-
-        const sortedBlocks = [...BLOCKS].sort((a,b)=>(finalSupport[b.id]||0)-(finalSupport[a.id]||0));
-
-        useEffect(()=>{
-            let step=0; const STEPS=70;
-            const t = setInterval(()=>{
-            step++;
-            const progress = step/STEPS;
-            const nd = {};
-            BLOCKS.forEach(b=>{ nd[b.id]=Math.round((finalSupport[b.id]||0)*Math.min(progress*1.3,1)); });
-            setDisplaySupport(nd);
-            const cc = Math.floor(progress*BLOCKS.length);
-            const nc = sortedBlocks.slice(0,cc).filter(b=>(finalSupport[b.id]||0)>28).map(b=>b.id);
-            setConfirmedBlocks(nc);
-            const seats = nc.reduce((s,id)=>{
-                const b=BLOCKS.find(x=>x.id===id);
-                return s+Math.min(b.seats,Math.round(b.seats*(finalSupport[id]/100)*1.3));
-            },0);
-            setTotalSeats(Math.min(seats,309));
-            if(step>=STEPS){ clearInterval(t); setTimeout(()=>setPhase("result"),1200); }
-            },110);
-            return ()=>clearInterval(t);
-        },[]);
-
-        const finalSeats = Math.min(BLOCKS.reduce((s,b)=>s+Math.min(b.seats,Math.round(b.seats*((finalSupport[b.id]||0)/100)*1.3)),0),309);
-        const won = finalSeats >= MAJORITY;
-        const avgSup = Math.round(BLOCKS.reduce((s,b)=>s+(finalSupport[b.id]||0)*b.pop,0)/BLOCKS.reduce((s,b)=>s+b.pop,0));
-        const rivalFinal = RIVALS.map(r=>({
-            ...r,
-            seats: Math.min(200, BLOCKS.reduce((s,b)=>s+Math.min(b.seats,Math.round(b.seats*((finalRivalSupport[r.id]||{})[b.id]||10)/100*1.1)),0))
-        }));
-
-        return(
-            <div style={{minHeight:"100vh",background:"#030712",color:"white",fontFamily:"'Hiragino Kaku Gothic ProN',Meiryo,sans-serif",display:"flex",flexDirection:"column",height:"100vh",overflow:"hidden"}}>
-            <div style={{background:"#b91c1c",padding:"8px 16px",display:"flex",alignItems:"center",gap:12,flexShrink:0}}>
-                <span style={{fontSize:11,fontWeight:700,letterSpacing:2,border:"1px solid rgba(255,255,255,0.6)",padding:"2px 6px"}}>NES</span>
-                <span style={{fontSize:13,fontWeight:700}}>■ 衆議院総選挙 開票速報 ■ {setup.partyName}</span>
-                <span style={{fontSize:11,color:"rgba(255,255,255,0.7)",marginLeft:"auto",fontWeight:700}}>● LIVE</span>
-            </div>
-            <div style={{flex:1,display:"flex",overflow:"hidden"}}>
-                <div style={{flex:1,padding:8}}>
-                <JapanMap support={displaySupport} partyColor={setup.partyColor}
-                    selectedBlock={null} onBlockClick={()=>{}} confirmedBlocks={confirmedBlocks}/>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {REGIONS.map(r => (
+              <div key={r.id} className="bg-gray-800 p-4 rounded-lg border border-gray-700 flex flex-col items-center">
+                <div className="font-bold text-gray-400 mb-2">{r.name}</div>
+                <div className="text-2xl font-bold">
+                  <span className="text-blue-400">{electionResults.regions[r.id].won}</span>
+                  <span className="text-sm text-gray-500 ml-1">/ {r.seats}</span>
                 </div>
-                <div style={{width:200,background:"#111827",borderLeft:"1px solid #1f2937",padding:10,overflowY:"auto",flexShrink:0}}>
-                <div style={{background:"#1f2937",borderRadius:12,padding:10,marginBottom:12}}>
-                    <div style={{fontSize:9,color:"#6b7280"}}>{setup.partyName}</div>
-                    <div style={{fontSize:36,fontWeight:700,color:setup.partyColor}}>{totalSeats}</div>
-                    <div style={{fontSize:10,color:"#fbbf24"}}>過半数 {MAJORITY}議席</div>
-                    <div style={{height:6,background:"#374151",borderRadius:3,overflow:"hidden",marginTop:6}}>
-                    <div style={{height:"100%",background:setup.partyColor,width:`${Math.min(100,totalSeats/309*100)}%`,transition:"width .3s"}}/>
-                    </div>
+                <div className="w-full bg-gray-700 h-2 rounded mt-3 overflow-hidden">
+                  <div 
+                    className="bg-blue-500 h-full" 
+                    style={{width: `${(electionResults.regions[r.id].won / r.seats) * 100}%`}}
+                  ></div>
                 </div>
-                <p style={{fontSize:9,color:"#6b7280",marginBottom:6,letterSpacing:1}}>他党</p>
-                {rivalFinal.map(r=>{
-                    const prog = finalSeats>0?Math.min(r.seats,Math.round(totalSeats/finalSeats*r.seats)):0;
-                    return(
-                    <div key={r.id} style={{marginBottom:8}}>
-                        <div style={{display:"flex",justifyContent:"space-between",fontSize:10}}>
-                        <span style={{color:r.color}}>{r.name}</span>
-                        <span style={{color:"#9ca3af"}}>{prog}議席</span>
-                        </div>
-                        <div style={{height:4,background:"#1f2937",borderRadius:2,overflow:"hidden",marginTop:2}}>
-                        <div style={{height:"100%",background:r.color,opacity:.7,width:`${Math.min(100,prog/309*100)}%`}}/>
-                        </div>
-                    </div>
-                    );
-                })}
-                <p style={{fontSize:9,color:"#6b7280",marginTop:10,marginBottom:6,letterSpacing:1}}>ブロック開票</p>
-                {sortedBlocks.map(b=>{
-                    const isC=confirmedBlocks.includes(b.id);
-                    return(
-                    <div key={b.id} style={{display:"flex",alignItems:"center",gap:6,marginBottom:6}}>
-                        <span style={{fontSize:9,width:12,color:isC?"#fbbf24":"#374151"}}>{isC?"✓":"—"}</span>
-                        <span style={{fontSize:9,color:"#9ca3af",width:44,flexShrink:0}}>{b.name}</span>
-                        <div style={{flex:1,height:4,background:"#1f2937",borderRadius:2,overflow:"hidden"}}>
-                        <div style={{height:"100%",background:isC?setup.partyColor:"#374151",width:`${displaySupport[b.id]||0}%`,transition:"width .3s"}}/>
-                        </div>
-                        <span style={{fontSize:9,width:24,textAlign:"right",color:isC?setup.partyColor:"#6b7280"}}>{Math.round(displaySupport[b.id]||0)}%</span>
-                    </div>
-                    );
-                })}
-                </div>
-            </div>
+              </div>
+            ))}
+          </div>
 
-            {phase==="result" && (
-                <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.9)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:16,zIndex:50,padding:16}}>
-                <div style={{fontSize:40,fontWeight:900,textAlign:"center",color:won?setup.partyColor:"#ef4444"}}>
-                    {won?"🎉 政権獲得！":"惜敗"}
-                </div>
-                <div style={{fontSize:14,color:"#d1d5db",textAlign:"center",maxWidth:280,lineHeight:1.6}}>
-                    {won?`${setup.partyName}が過半数を突破。新政権が誕生しました！`:`${setup.partyName}は過半数に届きませんでした。野党として活動を継続します。`}
-                </div>
-                <div style={{background:"#111827",border:"1px solid #374151",borderRadius:16,padding:16,width:260}}>
-                    <p style={{fontSize:10,color:"#6b7280",marginBottom:10,letterSpacing:1}}>最終結果</p>
-                    <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
-                    <div style={{width:10,height:10,borderRadius:"50%",background:setup.partyColor}}/>
-                    <span style={{fontSize:12,fontWeight:700,color:"white"}}>{setup.partyName}</span>
-                    <span style={{fontSize:22,fontWeight:900,marginLeft:"auto",color:setup.partyColor}}>{finalSeats}</span>
-                    </div>
-                    {rivalFinal.map(r=>(
-                    <div key={r.id} style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
-                        <div style={{width:8,height:8,borderRadius:"50%",background:r.color}}/>
-                        <span style={{fontSize:11,color:"#9ca3af"}}>{r.name}</span>
-                        <span style={{fontSize:14,fontWeight:700,marginLeft:"auto",color:r.color}}>{r.seats}</span>
-                    </div>
-                    ))}
-                    <div style={{borderTop:"1px solid #374151",marginTop:8,paddingTop:8}}>
-                    <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:4}}>
-                        <span style={{color:"#6b7280"}}>全国得票率</span>
-                        <span style={{color:"#d1d5db",fontWeight:700}}>{avgSup}%</span>
-                    </div>
-                    <div style={{display:"flex",justifyContent:"space-between",fontSize:11}}>
-                        <span style={{color:"#6b7280"}}>過半数まで</span>
-                        <span style={{color:won?"#22c55e":"#ef4444",fontWeight:700}}>{won?"達成！":`あと${MAJORITY-finalSeats}議席`}</span>
-                    </div>
-                    </div>
-                </div>
-                <button onClick={onRestart}
-                    style={{padding:"10px 32px",borderRadius:12,border:"none",background:setup.partyColor,color:"white",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
-                    もう一度プレイ
-                </button>
-                </div>
-            )}
+          <button 
+            onClick={() => window.location.reload()}
+            className="mt-12 mx-auto block bg-gray-700 hover:bg-gray-600 text-white px-8 py-3 rounded-full font-bold transition"
+          >
+            もう一度挑戦する
+          </button>
+        </div>
+      </div>
+    );
+  }
 
-            <div style={{background:"#450a0a",borderTop:"1px solid #7f1d1d",padding:"6px 12px",flexShrink:0,overflow:"hidden"}}>
-                <div style={{fontSize:9,color:"#fca5a5"}}>
-                ■ 開票速報 ■ {setup.partyName}の開票が進行中 ■ 各地ブロックで当確が出始めた ■ 全国から続々と情報が入っています ■
-                </div>
-            </div>
-            </div>
-        );
-        }
+  return null;
+};
 
-        // ─── ROOT ───────────────────────────────────────────────────
-        function App() {
-        const [phase, setPhase] = useState("setup");
-        const [setup, setSetup] = useState(null);
-        const [finalData, setFinalData] = useState(null);
+try {
+  const root = ReactDOM.createRoot(document.getElementById('root'));
+  root.render(<ElectionSimulation />);
+} catch (error) {
+  console.error("Reactの描画エラー:", error);
+  document.getElementById('root').innerHTML = `
+      <div class="p-8 text-center text-red-400">
+          <h2 class="text-2xl font-bold mb-4">エラーが発生しました</h2>
+          <p>コードに構文エラーがあります。</p>
+      </div>
+  `;
+}
 
-        function handleStart(cfg) { setSetup(cfg); setPhase("game"); }
-        function handleElection(sup, prefSup, rivalSup) { setFinalData({sup,prefSup,rivalSup}); setPhase("election"); }
-        function handleRestart() { setSetup(null); setFinalData(null); setPhase("setup"); }
-
-        if (phase==="setup") return <SetupScreen onStart={handleStart}/>;
-        if (phase==="game") return <GameScreen setup={setup} onElection={handleElection}/>;
-        if (phase==="election") return <ElectionScreen setup={setup} finalSupport={finalData.sup} finalRivalSupport={finalData.rivalSup} onRestart={handleRestart}/>;
-        return null;
-        }
-        // ==========================================
-        // ↓↓↓ ここにClaudeが出力したJSXコードを貼り付ける ↓↓↓
-        // ==========================================
-
-        function ElectionGame() {
-            // 例：ここにClaudeのコンポーネントコードが入る
-            return <div class="p-8 text-center text-2xl">ゲームを読み込み中...</div>;
-        }
-
-        // ==========================================
-        // ↑↑↑ ここにClaudeが出力したJSXコードを貼り付ける ↑↑↑
-        // ==========================================
-
-        // 最後に画面に描画する処理（Claudeのコードの末尾にこれが無ければ追加してください）
-        const root = bankrupt = ReactDOM.createRoot(document.getElementById('root'));
-        // ※ ElectionGame の部分は、Claudeが作った一番親のコンポーネント名（Appなど）に合わせてください
-        root.render(<ElectionGame />);
-        
     </script>
 </body>
 </html>
