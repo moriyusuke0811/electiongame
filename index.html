@@ -1039,7 +1039,7 @@ function GameScreen({ setup, onElection }){
       const ignoredTurns = turn - (lastActedTurn[p.id] || 1);
       let neglectPenalty = 0;
       if (ignoredTurns >= 3) {
-        neglectPenalty = 0.3 + (ignoredTurns * 0.15); 
+        neglectPenalty = 0.25 + (ignoredTurns * 0.1); 
       }
       const drift = (Math.random()-0.52)*0.6 - neglectPenalty;
       const cap = nf[p.id]*0.7;
