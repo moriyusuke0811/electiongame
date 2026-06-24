@@ -181,16 +181,16 @@ function ideologyLabel(v){
 
 // 知名度を考慮した支持率の上限（知名度がキャップ）
 function cappedSupport(rawSupport, fame){
-  return Math.min(rawSupport, fame * 0.7); // 知名度70%→支持率上限49%
+  return Math.min(rawSupport, fame * 0.4); // 例：知名度100でも支持率は最大40%
 }
 
 // 支持率が高いほど上昇しにくい減衰補正
 function decayFactor(currentPct){
-  if(currentPct < 15) return 1.0;
-  if(currentPct < 25) return 0.8;
-  if(currentPct < 35) return 0.55;
-  if(currentPct < 45) return 0.35;
-  return 0.18;
+  if(currentPct < 5) return 1.0;
+  if(currentPct < 15) return 0.6;
+  if(currentPct < 25) return 0.3;
+  if(currentPct < 35) return 0.15;
+  return 0.05; // 35%を超えると絶望的に上がらなくなる
 }
 
 // 無党派層の割合（各県の残り）
@@ -450,12 +450,12 @@ function MemberModal({ members, funds, onRecruit, onDeploy, onClose }){
         </div>
         <div style={{flex:1,overflowY:"auto",padding:14}}>
           <div style={{background:"#1f2937",borderRadius:12,padding:12,marginBottom:14}}>
-            <p style={{fontSize:10,color:"#6b7280",marginBottom:8}}>党員採用（-50万円/人）資金:{funds}万円</p>
+            <p style={{fontSize:10,color:"#6b7280",marginBottom:8}}>党員採用（-100万円/人）資金:{funds}万円</p>
             <div style={{display:"flex",gap:8}}>
               {[1,3,5].map(n=>(
                 <button key={n} onClick={()=>onRecruit(n)} disabled={funds<50*n}
                   style={{flex:1,padding:"8px 4px",borderRadius:8,border:`1px solid ${funds>=50*n?"#22c55e":"#374151"}`,background:"transparent",color:funds>=50*n?"#22c55e":"#6b7280",fontSize:11,fontWeight:700}}>
-                  +{n}人<br/><span style={{fontSize:9,opacity:.7}}>-{50*n}万円</span>
+                  +{n}人<br/><span style={{fontSize:9,opacity:.7}}>-{100*n}万円</span>
                 </button>
               ))}
             </div>
@@ -624,10 +624,10 @@ function SetupScreen({ onStart }){
     const prefSupport={}, prefFame={}, rivalSupport={};
     PREFECTURES.forEach(p=>{
       const m=calcMatch(pe,pd,ps,p);
-      const homeBonus=(p.block===home)?12:0;
+      const homeBonus=(p.block===home)?5:0; // 12から5へ減少
       const baseFame=clamp(fame0+(Math.random()-0.5)*8,5,100);
       prefFame[p.id]=baseFame;
-      const rawSup=clamp(m*40+5+homeBonus+(Math.random()-0.5)*6,1,50);
+      const rawSup=clamp(m*30+0+homeBonus+(Math.random()-0.5)*6,1,50);
       prefSupport[p.id]=clamp(rawSup, 0, baseFame*0.7);
     });
     RIVALS_DEF.forEach(r=>{
@@ -651,7 +651,8 @@ function SetupScreen({ onStart }){
     const adjSup={};
     PREFECTURES.forEach(p=>{
       const m=calcMatch(r.econ,r.diplo,r.social,p);
-      adjSup[p.id]=clamp(m*45+12+(Math.random()-0.5)*6,3,50);
+      // ▼ 修正：既存政党でも初期支持率を抑えめ（上限も40など）にする
+      adjSup[p.id]=clamp(m*30+5+(Math.random()-0.5)*6,3,40);
     });
     onStart({
       partyName:r.name, partyColor:r.color,
@@ -893,11 +894,15 @@ function GameScreen({ setup, onElection }){
   function applyRivalAI(rs){
     const next={...rs};
     rivalDefs.forEach(r=>{
-      if(Math.random()>r.aggression) return;
-      const pref=PREFECTURES[Math.floor(Math.random()*PREFECTURES.length)];
       next[r.id]={...(next[r.id]||{})};
-      const cur=next[r.id][pref.id]||10;
-      next[r.id][pref.id]=clamp(cur+(0.5+Math.random()*1.5),1,50);
+      // 1箇所だけでなく、全47都道府県でそれぞれ判定を行う
+      PREFECTURES.forEach(pref=>{
+        // aggression（攻撃性）に応じて各地で支持率を伸ばす
+        if(Math.random() < r.aggression * 0.5){ // 強すぎる場合は 0.5 などを掛けて調整
+          const cur=next[r.id][pref.id]||10;
+          next[r.id][pref.id]=clamp(cur+(0.3+Math.random()*1.0),1,50);
+        }
+      });
     });
     return next;
   }
@@ -931,10 +936,10 @@ function GameScreen({ setup, onElection }){
     const pref=PREFECTURES.find(p=>p.id===prefId);
     const blockMembers=members.filter(m=>m.location===pref.block).length;
     const fameBefore=prefFame[prefId]||0;
-    const fameGain=clamp(1.5+Math.random()*2,0,100-fameBefore);
+    const fameGain=clamp(0.5+Math.random()*1.0,0,100-fameBefore); // 知名度は0.5〜1.5%しか上がらない
     const newFame=clamp(fameBefore+fameGain,0,100);
     const cap=newFame*0.7;
-    const base=(1.0+Math.random()*1.5)*decayFactor(prefSupport[prefId]||0)*(1+blockMembers*0.4);
+    const base=(0.5+Math.random()*0.8)*decayFactor(prefSupport[prefId]||0)*(1+blockMembers*0.2); // 党員バフも0.4→0.2へ
     const supGain=clamp(base,0,cap-(prefSupport[prefId]||0));
     setPrefFame(prev=>({...prev,[prefId]:newFame}));
     setPrefSupport(prev=>({...prev,[prefId]:clamp((prev[prefId]||0)+supGain,0,cap)}));
@@ -1003,7 +1008,7 @@ function GameScreen({ setup, onElection }){
 
   function doFundraise(){
     if(ap<=0){ showNotif("この週の行動回数が上限です","error"); return; }
-    const earn=40+Math.floor(Math.random()*60);
+    const earn=10+Math.floor(Math.random()*50); // 一度の資金調達で得られる額を大幅カット
     setFunds(f=>f+earn);
     addLog(`資金パーティー +${earn}万円`);
     showNotif(`${earn}万円調達！`,"info");
@@ -1335,22 +1340,35 @@ function ElectionScreen({ setup, finalPrefSupport, finalPrefFame, finalRivalSupp
 
   // エンディング判定
   function getEnding(seats){
-    if(seats>=MAJORITY) return{
-      title:"🎉 歴史的勝利！政権交代達成！",
-      body:`${setup.partyName}が過半数（${MAJORITY}議席）を突破。単独過半数での政権交代が実現しました。新しい時代の幕開けです。`,
-      color:"#fbbf24", grade:"完全クリア"
-    };
-    if(seats>=150) return{
-      title:"⭐ 大躍進！強力な野党第一党へ",
-      body:`${seats}議席を獲得しました。政権獲得には届きませんでしたが、強力な野党第一党として次回に期待がかかります。`,
-      color:"#22c55e", grade:"大善戦"
-    };
-    return{
-      title:"😞 惨敗……",
-      body:`${seats}議席にとどまりました。国民の支持を得られず、党の存続が危ぶまれる厳しい結果となりました。`,
-      color:"#ef4444", grade:"敗北"
-    };
-  }
+  if(seats>=MAJORITY) return{
+    title:"🎉 歴史的勝利！政権交代達成！",
+    body:`${setup.partyName}が過半数（${MAJORITY}議席）を突破。単独過半数での政権交代が実現しました。`,
+    color:"#fbbf24", grade:"完全クリア"
+  };
+  // ハードモードでは100議席でも大健闘
+  if(seats>=100) return{
+    title:"⭐ 大躍進！強力な野党第一党へ",
+    body:`${seats}議席を獲得しました。政権獲得には届きませんでしたが、強力な野党第一党として次回に期待がかかります。`,
+    color:"#22c55e", grade:"大善戦"
+  };
+  // 50議席ライン（キャスティングボート）
+  if(seats>=50) return{
+    title:"⚖️ 健闘。国会のキャスティングボートを握る",
+    body:`${seats}議席を獲得。与野党の勢力図を左右する重要なポジションを確立しました。地道な党勢拡大が実を結びました。`,
+    color:"#60a5fa", grade:"健闘"
+  };
+  // 20議席以下は「惨敗」を超えたバッドエンド
+  if(seats>10) return{
+    title:"😞 敗北。野党のワン・オブ・ゼムへ",
+    body:`${seats}議席にとどまりました。現有議席の維持すら厳しく、党内からは執行部の責任を問う声が上がっています。`,
+    color:"#f97316", grade:"敗北"
+  };
+  return{
+    title:"💀 党首辞任、そして党の解散へ...",
+    body:`獲得議席わずか${seats}。国民の支持を全く得られず、主要メンバーは次々と離党。${setup.partyName}は歴史の波に飲まれ消滅しました。`,
+    color:"#ef4444", grade:"ゲームオーバー"
+  };
+}
 
   const ending = getEnding(playerTotal);
 
