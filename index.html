@@ -1396,8 +1396,10 @@ function ElectionScreen({ setup, finalPrefSupport, finalPrefFame, finalRivalSupp
   const rivalDefs = setup.rivalDefs || RIVALS_DEF;
 
   // 最終議席計算
-  const smdResult = calcSMDSeats(finalPrefSupport, finalRivalSupport, "player", {}, {});
-  const prResult  = calcPRSeats(finalPrefSupport, finalRivalSupport, "player", {}, {});
+  // ⚠️ 修正箇所：第4引数の空オブジェクト {} を rivalDefs に変更
+  const smdResult = calcSMDSeats(finalPrefSupport, finalRivalSupport, "player", rivalDefs, {});
+  const prResult  = calcPRSeats(finalPrefSupport, finalRivalSupport, "player", rivalDefs, {});
+  
   const playerSMD  = smdResult["player"]||0;
   const playerPR   = prResult["player"]||0;
   
