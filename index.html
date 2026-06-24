@@ -927,6 +927,9 @@ function GameScreen({ setup, onElection }){
   const [notif, setNotif] = useState(null);
   const [tab, setTab] = useState("map");
   const [pendingAction, setPendingAction] = useState(null); // 演説中の都道府県ID
+  
+  // 💡 追加：各都道府県で最後に「演説・CM」を行ったターンを記録（初期値は1）
+  const [lastActedTurn, setLastActedTurn] = useState(Object.fromEntries(PREFECTURES.map(p=>[p.id, 1])));
 
   const isElectionPhase = turn >= ELECTION_TURN;
   const avgSupport = Math.round(
@@ -982,41 +985,45 @@ function GameScreen({ setup, onElection }){
   }
 
   function applyRivalAI(rs){
-  const next={...rs};
-  rivalDefs.forEach(r=>{
-    next[r.id]={...(next[r.id]||{})};
-    // 全47都道府県でそれぞれ判定を行う
-    PREFECTURES.forEach(pref=>{
-      const cur = next[r.id][pref.id] || 10;
-      
-      // aggression（攻撃性）に応じて各地で支持率を伸ばす
-      if(Math.random() < r.aggression * 0.4){
-        // 上昇幅にばらつきを持たせる（基本は0〜1.5%、たまに+1.5%のボーナス）
-        let gain = Math.random() * 1.5;
-        if(Math.random() < 0.2) gain += 1.5; // 20%の確率でその地域に注力したような大きな伸び
-
-        // 上限を30（30%）に調整
-        next[r.id][pref.id] = clamp(cur + gain, 1, 30);
-      } else {
-        // 成長判定から漏れた地域は、支持率が微減（自然減）するようにする
-        // これにより、全国一律に育つのではなく、地域ごとの「ばらつき」が強調される
-        next[r.id][pref.id] = clamp(cur - Math.random() * 0.4, 1, 30);
-      }
+    const next={...rs};
+    rivalDefs.forEach(r=>{
+      next[r.id]={...(next[r.id]||{})};
+      PREFECTURES.forEach(pref=>{
+        const cur = next[r.id][pref.id] || 10;
+        if(Math.random() < r.aggression * 0.4){
+          let gain = Math.random() * 1.5;
+          if(Math.random() < 0.2) gain += 1.5;
+          next[r.id][pref.id] = clamp(cur + gain, 1, 30);
+        } else {
+          next[r.id][pref.id] = clamp(cur - Math.random() * 0.4, 1, 30);
+        }
+      });
     });
-  });
-  return next;
-}
+    return next;
+  }
 
   function nextTurn(){
     if(turn>=TOTAL_TURNS){ onElection(prefSupport,prefFame,rivalSupport); return; }
     const{ns,nf}=applyPassiveBoosts(prefSupport,prefFame);
-    // 自然変動
+    
+    // 自然変動 ＋ 💡 放置ペナルティの適用
     PREFECTURES.forEach(p=>{
-      const drift=(Math.random()-0.52)*0.6;
-      const cap=nf[p.id]*0.7;
+      const ignoredTurns = turn - (lastActedTurn[p.id] || 1);
+      let neglectPenalty = 0;
+      
+      // 3ターン以上放置された地域はペナルティ増大
+      if (ignoredTurns >= 3) {
+        neglectPenalty = 0.3 + (ignoredTurns * 0.15); 
+      }
+
+      // 自然変動にペナルティを差し引く
+      const drift = (Math.random()-0.52)*0.6 - neglectPenalty;
+      const cap = nf[p.id]*0.7;
+      
       ns[p.id]=clamp((ns[p.id]||0)+drift,0,cap);
       nf[p.id]=clamp((nf[p.id]||0)+(Math.random()-0.5)*0.3,0,100);
     });
+
     setPrefSupport(ns);
     setPrefFame(nf);
     setRivalSupport(prev=>applyRivalAI(prev));
@@ -1036,13 +1043,21 @@ function GameScreen({ setup, onElection }){
     const pref=PREFECTURES.find(p=>p.id===prefId);
     const blockMembers=members.filter(m=>m.location===pref.block).length;
     const fameBefore=prefFame[prefId]||0;
-    const fameGain=clamp(0.5+Math.random()*1.0,0,100-fameBefore); // 知名度は0.5〜1.5%しか上がらない
+    const fameGain=clamp(0.5+Math.random()*1.0,0,100-fameBefore);
     const newFame=clamp(fameBefore+fameGain,0,100);
     const cap=newFame*0.7;
-    const base=(0.5+Math.random()*0.8)*decayFactor(prefSupport[prefId]||0)*(1+blockMembers*0.35); // 党員バフも0.4→0.2へ
+    
+    // 💡 知名度によるボーナス倍率を追加（知名度の10%をベースに加算）
+    const fameBonus = fameBefore * 0.1; 
+    const base = (0.5 + Math.random() * 0.8 + fameBonus) * decayFactor(prefSupport[prefId]||0) * (1+blockMembers*0.35);
     const supGain=clamp(base,0,cap-(prefSupport[prefId]||0));
+    
     setPrefFame(prev=>({...prev,[prefId]:newFame}));
     setPrefSupport(prev=>({...prev,[prefId]:clamp((prev[prefId]||0)+supGain,0,cap)}));
+    
+    // 💡 最後に構ったターンを更新（放置ペナルティリセット）
+    setLastActedTurn(prev=>({...prev, [prefId]: turn}));
+
     addLog(`${pref.name}で街頭演説 知名+${fameGain.toFixed(1)}% 支持+${supGain.toFixed(1)}%`);
     showNotif(`${pref.name}で演説！知名度↑ 支持+${supGain.toFixed(1)}%`,"success");
     useAP(1);
@@ -1055,15 +1070,21 @@ function GameScreen({ setup, onElection }){
     const fameGain=2+Math.random()*2;
     const newFame={...prefFame};
     const newSup={...prefSupport};
+    const newLastActed = {...lastActedTurn}; // 💡 放置タイマー更新用
+
     prefs.forEach(p=>{
       newFame[p.id]=clamp((newFame[p.id]||0)+fameGain,0,100);
       const cap=newFame[p.id]*0.7;
       const g=(2+Math.random()*2)*decayFactor(newSup[p.id]||0);
       newSup[p.id]=clamp((newSup[p.id]||0)+g,0,cap);
+      newLastActed[p.id] = turn; // 💡 ブロック内の全県の放置ペナルティリセット
     });
+
     setPrefFame(newFame);
     setPrefSupport(newSup);
+    setLastActedTurn(newLastActed);
     setFunds(f=>f-40);
+    
     const bname=BLOCKS.find(b=>b.id===blockId)?.name||blockId;
     addLog(`${bname}で地方CM投下 -40万円`);
     showNotif(`${bname}でCM配信！知名度・支持率UP`,"success");
@@ -1108,7 +1129,7 @@ function GameScreen({ setup, onElection }){
 
   function doFundraise(){
     if(ap<=0){ showNotif("この週の行動回数が上限です","error"); return; }
-    const earn=10+Math.floor(Math.random()*50); // 一度の資金調達で得られる額を大幅カット
+    const earn=10+Math.floor(Math.random()*50);
     setFunds(f=>f+earn);
     addLog(`資金パーティー +${earn}万円`);
     showNotif(`${earn}万円調達！`,"info");
