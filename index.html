@@ -1398,13 +1398,16 @@ function ElectionScreen({ setup, finalPrefSupport, finalPrefFame, finalRivalSupp
   const prResult  = calcPRSeats(finalPrefSupport, finalRivalSupport, "player", {}, {});
   const playerSMD  = smdResult["player"]||0;
   const playerPR   = prResult["player"]||0;
-  const playerTotal = Math.min(playerSMD+playerPR, TOTAL_SEATS);
+  
+  // TOTAL_SEATSの上限キャップを外して純粋な足し算にする
+  const playerTotal = playerSMD + playerPR;
 
   const rivalTotals = rivalDefs.map(r=>({
     ...r,
     smd:smdResult[r.id]||0,
     pr:prResult[r.id]||0,
-    total:Math.min((smdResult[r.id]||0)+(prResult[r.id]||0),200),
+    // 200の上限キャップを外して純粋な足し算にする
+    total: (smdResult[r.id]||0) + (prResult[r.id]||0),
   }));
 
   // ブロック平均（地図用）
