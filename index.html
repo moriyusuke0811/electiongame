@@ -895,12 +895,22 @@ function GameScreen({ setup, onElection }){
     const next={...rs};
     rivalDefs.forEach(r=>{
       next[r.id]={...(next[r.id]||{})};
-      // 1箇所だけでなく、全47都道府県でそれぞれ判定を行う
+      // 全47都道府県でそれぞれ判定を行う
       PREFECTURES.forEach(pref=>{
+        const cur = next[r.id][pref.id] || 10;
+        
         // aggression（攻撃性）に応じて各地で支持率を伸ばす
-        if(Math.random() < r.aggression * 0.5){ // 強すぎる場合は 0.5 などを掛けて調整
-          const cur=next[r.id][pref.id]||10;
-          next[r.id][pref.id]=clamp(cur+(0.3+Math.random()*1.0),1,50);
+        if(Math.random() < r.aggression * 0.4){
+          // 上昇幅にばらつきを持たせる（基本は0〜1.5%、たまに+1.5%のボーナス）
+          let gain = Math.random() * 1.5;
+          if(Math.random() < 0.2) gain += 1.5; // 20%の確率でその地域に注力したような大きな伸び
+
+          // 上限を30（30%）に調整
+          next[r.id][pref.id] = clamp(cur + gain, 1, 30);
+        } else {
+          // 成長判定から漏れた地域は、支持率が微減（自然減）するようにする
+          // これにより、全国一律に育つのではなく、地域ごとの「ばらつき」が強調される
+          next[r.id][pref.id] = clamp(cur - Math.random() * 0.4, 1, 30);
         }
       });
     });
