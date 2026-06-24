@@ -259,7 +259,7 @@ function calcSMDSeats(prefSupport, rivalSupport, playerPartyId, prefFame, rivalF
     });
     // 無党派の一部を「風」で分配
     const indep = Math.max(0, 100-allPcts.reduce((s,p)=>s+p.pct,0));
-    const wind = Math.random()*0.4; // 無党派の0〜40%が最大勢力に流れる
+    const wind = Math.random()*0.3; // 無党派の0〜30%が最大勢力に流れる
     const maxParty = allPcts.reduce((a,b)=>a.pct>b.pct?a:b);
     const withWind = allPcts.map(p=>({...p, finalPct:p.pct+(p.id===maxParty.id?indep*wind:0)}));
     const winner = withWind.reduce((a,b)=>a.finalPct>b.finalPct?a:b);
