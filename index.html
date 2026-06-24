@@ -995,11 +995,14 @@ function GameScreen({ setup, onElection }){
 
   function applyRivalAI(rs){
     const next={...rs};
-    const nextRivalLastActed = { ...rivalLastActedTurn }; // 💡 タイマー更新用
+    // 💡 既存のデータをシャローコピーして新しいオブジェクトを作る
+    const nextRivalLastActed = {};
+    rivalDefs.forEach(r => {
+      nextRivalLastActed[r.id] = { ...(rivalLastActedTurn[r.id] || {}) };
+    });
 
     rivalDefs.forEach(r => {
       next[r.id] = { ...(next[r.id] || {}) };
-      nextRivalLastActed[r.id] = { ...(nextRivalLastActed[r.id] || {}) };
 
       PREFECTURES.forEach(pref => {
         const cur = next[r.id][pref.id] || 10;
@@ -1019,16 +1022,16 @@ function GameScreen({ setup, onElection }){
       });
     });
 
-    // 💡 状態を更新
-    setRivalLastActedTurn(nextRivalLastActed);
-    return next;
+    // 💡 支持率データと、更新された活動ターンデータを両方返す
+    return { nextRivals: next, nextRivalLastActed };
   }
+
   function nextTurn(){
     if(turn>=TOTAL_TURNS){ onElection(prefSupport,prefFame,rivalSupport); return; }
     const{ns,nf}=applyPassiveBoosts(prefSupport,prefFame);
     
-    // 💡 先にライバルAIを動かして、最新の活動ターン履歴を確定させる
-    const nextRivals = applyRivalAI(rivalSupport);
+    // 💡 AIのシミュレーションを実行し、最新の活動履歴オブジェクトを受け取る
+    const { nextRivals, nextRivalLastActed } = applyRivalAI(rivalSupport);
 
     // 自然変動 ＋ 💡 放置ペナルティの適用
     PREFECTURES.forEach(p=>{
@@ -1043,9 +1046,10 @@ function GameScreen({ setup, onElection }){
       ns[p.id]=clamp((ns[p.id]||0)+drift,0,cap);
       nf[p.id]=clamp((nf[p.id]||0)+(Math.random()-0.5)*0.3,0,100);
 
-      // --- ② 【追加】ライバルAIの放置ペナルティ処理 ---
+      // --- ② ライバルAIの放置ペナルティ処理 ---
       rivalDefs.forEach(r => {
-        const rivalIgnoredTurns = turn - (rivalLastActedTurn[r.id]?.[p.id] || 1);
+        // 💡 applyRivalAI から上がってきた最新の活動ターン（nextRivalLastActed）をここで直接参照する
+        const rivalIgnoredTurns = turn - (nextRivalLastActed[r.id]?.[p.id] || 1);
         let rivalNeglectPenalty = 0;
         
         // ライバルも3週以上放置したらペナルティ発生
@@ -1061,7 +1065,8 @@ function GameScreen({ setup, onElection }){
 
     setPrefSupport(ns);
     setPrefFame(nf);
-    setRivalSupport(nextRivals); // 💡 ペナルティ適用済みのデータをセット
+    setRivalSupport(nextRivals); 
+    setRivalLastActedTurn(nextRivalLastActed); // 💡 確定した最新の活動履歴を一括でStateに保存
 
     const nt=turn+1;
     setTurn(nt);
