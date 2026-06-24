@@ -1507,60 +1507,61 @@ function ElectionScreen({ setup, finalPrefSupport, finalPrefFame, finalRivalSupp
 
   // エンディング判定
   // エンディング判定
-  function getEnding(seats){
+  function getEnding(seats, currentSetup = setup) {
     // ━━━━ 新党モードのエンディング ━━━━
-    if(setup.isNewParty){ // ※セットアップ時の新党判定フラグ（必要に応じて条件式を調整してください）
-      if(seats >= 20) return {
+    // setupオブジェクト内の isNewParty フラグ、または党のタイプなどで判定
+    if (currentSetup?.isNewParty || currentSetup?.partyType === "new") { 
+      if (seats >= 20) return {
         title: "🎉 歴史的快挙！新党が国会を席巻",
-        body: `${seats}議席を獲得。結党間もない新党が一大勢力となり、既存の政治を根底から覆す歴史的な大波乱を起こしました！`,
+        body: `${seats}議席を獲得。結党間もない新党が一大勢力となり、既存の既得権益を根底から覆す歴史的な大波乱を起こしました！`,
         color: "#fbbf24", grade: "伝説的勝利"
       };
-      if(seats >= 6) return {
-        title: "🌪️ 新党大旋風！",
-        body: `${seats}議席を獲得。比例復活も含めて各地で議席をもぎ取り、国会で無視できない台風の目となりました。`,
+      if (seats >= 6) return {
+        title: "🌪️ 新党大旋風！政党要件クリア",
+        body: `${seats}議席を獲得。比例復活も含めて各地で大健闘し、法律上の「政党要件（5議席以上）」を突破！国会で無視できない台風の目となりました。`,
         color: "#22c55e", grade: "大躍進"
       };
-      if(seats >= 2) return {
-        title: "⭐ 新党躍進！複数議席を獲得",
-        body: `${seats}議席を獲得！政党要件（5議席）の達成も視野に入り、新党として確かな足がかりを掴みました。`,
+      if (seats >= 2) return {
+        title: "⭐ 新党躍進！国会に橋頭堡を築く",
+        body: `${seats}議席を獲得！複数の仲間と共に国会へ乗り込みます。政党要件の達成も射程圏内に捉え、新党として確かな足がかりを掴みました。`,
         color: "#60a5fa", grade: "躍進"
       };
-      if(seats === 1) return {
-        title: "✨ 1議席を獲得！新党躍進",
-        body: `激戦を制し、ついに悲願の1議席を獲得！たった1議席でも、国政に新しい声を届けるための偉大な第一歩です。`,
+      if (seats === 1) return {
+        title: "✨ 悲願の1議席！新党の第一歩",
+        body: `激戦を制し、ついに悲願の1議席を獲得！組織票を持たない新党にとって、この1議席は国政に新しい声を届けるための偉大な一歩です。`,
         color: "#f472b6", grade: "第一歩"
       };
       return {
-        title: "😞 議席獲得ならず...",
-        body: `健闘したものの、既存政党の厚い壁に阻まれ議席獲得には届きませんでした。次なる挑戦に向けた地道な活動がここから始まります。`,
+        title: "😞 議席獲得ならず...壁は厚かった",
+        body: `全国で健闘したものの、既存政党の分厚い組織戦に阻まれ議席には届きませんでした。しかし、あなたの蒔いた「変革の種」は確かに有権者に届いています。`,
         color: "#9ca3af", grade: "敗北"
       };
     }
 
-    // ━━━━ 既存政党モードのエンディング（ハードル高め） ━━━━
-    if(seats >= MAJORITY) return {
+    // ━━━━ 既存政党モードのエンディング ━━━━
+    if (seats >= MAJORITY) return {
       title: "🎉 歴史的勝利！政権交代達成！",
-      body: `${setup.partyName}が過半数（${MAJORITY}議席）を突破。単独過半数での政権交代が実現しました。新しい時代の幕開けです。`,
+      body: `${currentSetup.partyName}が過半数（${MAJORITY}議席）を突破。単独過半数での政権交代が実現しました。新しい時代の幕開けです。`,
       color: "#fbbf24", grade: "完全クリア"
     };
-    if(seats >= 100) return {
+    if (seats >= 100) return {
       title: "⭐ 大躍進！強力な野党第一党へ",
       body: `${seats}議席を獲得しました。政権獲得には届きませんでしたが、強力な野党第一党として次回に期待がかかります。`,
       color: "#22c55e", grade: "大善戦"
     };
-    if(seats >= 50) return {
+    if (seats >= 50) return {
       title: "⚖️ 健闘。国会のキャスティングボートを握る",
       body: `${seats}議席を獲得。与野党の勢力図を左右する重要なポジションを確立しました。地道な党勢拡大が実を結びました。`,
       color: "#60a5fa", grade: "健闘"
     };
-    if(seats > 10) return {
+    if (seats > 10) return {
       title: "😞 敗北。野党のワン・オブ・ゼムへ",
       body: `${seats}議席にとどまりました。現有議席の維持すら厳しく、党内からは執行部の責任を問う声が上がっています。`,
       color: "#f97316", grade: "敗北"
     };
     return {
       title: "💀 党首辞任、そして党の解散へ...",
-      body: `獲得議席わずか${seats}。国民の支持を全く得られず、主要メンバーは次々と離党。${setup.partyName}は歴史の波に飲まれ消滅しました。`,
+      body: `獲得議席わずか${seats}。国民の支持を全く得られず、主要メンバーは次々と離党。${currentSetup.partyName}は歴史の波に飲まれ消滅しました。`,
       color: "#ef4444", grade: "ゲームオーバー"
     };
   }
