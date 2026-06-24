@@ -245,6 +245,7 @@ function calcPRSeats(prefSupport, rivalSupport, playerPartyId, playerFame, rival
   const totalPR = { [playerPartyId]: 0 };
   RIVALS_DEF.forEach(r => totalPR[r.id] = 0);
 
+  // 1. 各ブロックでのドント式配分
   BLOCKS.forEach(block=>{
     const prefs = PREFECTURES.filter(p=>p.block===block.id);
     if(prefs.length === 0) return;
@@ -252,7 +253,6 @@ function calcPRSeats(prefSupport, rivalSupport, playerPartyId, playerFame, rival
     const partyAvg = { [playerPartyId]: 0 };
     RIVALS_DEF.forEach(r => partyAvg[r.id] = 0);
 
-    // 全て Number() で明示的に数値変換して集計
     prefs.forEach(p => {
       partyAvg[playerPartyId] += Number(prefSupport[p.id] || 0);
       RIVALS_DEF.forEach(r => {
@@ -273,9 +273,7 @@ function calcPRSeats(prefSupport, rivalSupport, playerPartyId, playerFame, rival
       } else {
         votes += distributeVotes / Object.keys(partyAvg).length;
       }
-      // 同点対策の微小ランダム
       votes += Math.random() * 0.0001;
-      // 万が一計算が壊れても NaN にしない
       return { id: pid, votes: Number.isNaN(votes) ? 0 : votes };
     });
 
@@ -287,6 +285,36 @@ function calcPRSeats(prefSupport, rivalSupport, playerPartyId, playerFame, rival
       totalPR[pid] += s;
     });
   });
+
+  // ━━━━ ▼ 絶対に176議席（総計465議席）にするための最終補正 ▼ ━━━━
+  const TARGET_PR_SEATS = 176; // 比例代表の総定数 (465 - 289)
+  let currentTotalPr = Object.values(totalPR).reduce((sum, val) => sum + val, 0);
+
+  if (currentTotalPr !== TARGET_PR_SEATS) {
+    const diff = TARGET_PR_SEATS - currentTotalPr;
+    
+    // 足りない（または多すぎる）議席を、一番比例議席を獲得している政党で調整する
+    let topPartyId = playerPartyId;
+    let maxSeats = -1;
+    
+    Object.entries(totalPR).forEach(([pid, seats]) => {
+      if (seats > maxSeats) {
+        maxSeats = seats;
+        topPartyId = pid;
+      }
+    });
+
+    // トップの政党に差分を足し引きして強制的に辻褄を合わせる
+    totalPR[topPartyId] += diff;
+    
+    // 万が一マイナスになった場合は0に戻し、プレイヤーの議席で無理やり合わせる
+    if (totalPR[topPartyId] < 0) {
+        totalPR[topPartyId] = 0;
+        let newTotal = Object.values(totalPR).reduce((sum, val) => sum + val, 0);
+        totalPR[playerPartyId] += (TARGET_PR_SEATS - newTotal);
+    }
+  }
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   return totalPR;
 }
@@ -712,7 +740,7 @@ function SetupScreen({ onStart }){
     PREFECTURES.forEach(p=>{
       const m=calcMatch(r.econ,r.diplo,r.social,p);
       // ▼ 修正：既存政党でも初期支持率を抑えめ（上限も40など）にする
-      adjSup[p.id]=clamp(m*30+5+(Math.random()-0.5)*6,3,40);
+      adjSup[p.id]=clamp(m*20+5+(Math.random()-0.5)*6,3,40);
     });
     onStart({
       partyName:r.name, partyColor:r.color,
