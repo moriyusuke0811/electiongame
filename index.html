@@ -931,6 +931,15 @@ function GameScreen({ setup, onElection }){
   // 💡 追加：各都道府県で最後に「演説・CM」を行ったターンを記録（初期値は1）
   const [lastActedTurn, setLastActedTurn] = useState(Object.fromEntries(PREFECTURES.map(p=>[p.id, 1])));
 
+  // 💡 【追加】ライバルごとの各都道府県の最終活動ターンを記録
+  const [rivalLastActedTurn, setRivalLastActedTurn] = useState(() => {
+    const initial = {};
+    RIVALS_DEF.forEach(r => {
+      initial[r.id] = Object.fromEntries(PREFECTURES.map(p => [p.id, 1]));
+    });
+    return initial;
+  });
+
   const isElectionPhase = turn >= ELECTION_TURN;
   const avgSupport = Math.round(
     PREFECTURES.reduce((s,p)=>s+(prefSupport[p.id]||0)*p.pop,0)/
@@ -986,47 +995,74 @@ function GameScreen({ setup, onElection }){
 
   function applyRivalAI(rs){
     const next={...rs};
-    rivalDefs.forEach(r=>{
-      next[r.id]={...(next[r.id]||{})};
-      PREFECTURES.forEach(pref=>{
+    const nextRivalLastActed = { ...rivalLastActedTurn }; // 💡 タイマー更新用
+
+    rivalDefs.forEach(r => {
+      next[r.id] = { ...(next[r.id] || {}) };
+      nextRivalLastActed[r.id] = { ...(nextRivalLastActed[r.id] || {}) };
+
+      PREFECTURES.forEach(pref => {
         const cur = next[r.id][pref.id] || 10;
+        
+        // AIがその地域で活発に動いたか（確率判定）
         if(Math.random() < r.aggression * 0.4){
           let gain = Math.random() * 1.5;
           if(Math.random() < 0.2) gain += 1.5;
           next[r.id][pref.id] = clamp(cur + gain, 1, 30);
+          
+          // 💡 活動したので、この都道府県のタイマーを現在のターンに更新
+          nextRivalLastActed[r.id][pref.id] = turn;
         } else {
+          // ここでの微減はそのまま残す（自然減衰のベース）
           next[r.id][pref.id] = clamp(cur - Math.random() * 0.4, 1, 30);
         }
       });
     });
+
+    // 💡 状態を更新
+    setRivalLastActedTurn(nextRivalLastActed);
     return next;
   }
-
   function nextTurn(){
     if(turn>=TOTAL_TURNS){ onElection(prefSupport,prefFame,rivalSupport); return; }
     const{ns,nf}=applyPassiveBoosts(prefSupport,prefFame);
     
+    // 💡 先にライバルAIを動かして、最新の活動ターン履歴を確定させる
+    const nextRivals = applyRivalAI(rivalSupport);
+
     // 自然変動 ＋ 💡 放置ペナルティの適用
     PREFECTURES.forEach(p=>{
+      // --- ① プレイヤーのペナルティ処理 ---
       const ignoredTurns = turn - (lastActedTurn[p.id] || 1);
       let neglectPenalty = 0;
-      
-      // 3ターン以上放置された地域はペナルティ増大
       if (ignoredTurns >= 3) {
         neglectPenalty = 0.3 + (ignoredTurns * 0.15); 
       }
-
-      // 自然変動にペナルティを差し引く
       const drift = (Math.random()-0.52)*0.6 - neglectPenalty;
       const cap = nf[p.id]*0.7;
-      
       ns[p.id]=clamp((ns[p.id]||0)+drift,0,cap);
       nf[p.id]=clamp((nf[p.id]||0)+(Math.random()-0.5)*0.3,0,100);
+
+      // --- ② 【追加】ライバルAIの放置ペナルティ処理 ---
+      rivalDefs.forEach(r => {
+        const rivalIgnoredTurns = turn - (rivalLastActedTurn[r.id]?.[p.id] || 1);
+        let rivalNeglectPenalty = 0;
+        
+        // ライバルも3週以上放置したらペナルティ発生
+        if (rivalIgnoredTurns >= 3) {
+          rivalNeglectPenalty = 0.3 + (rivalIgnoredTurns * 0.15);
+        }
+        
+        // 現在のAI支持率からさらに放置ペナルティを引き算する
+        const rCur = nextRivals[r.id][p.id] || 10;
+        nextRivals[r.id][p.id] = clamp(rCur - rivalNeglectPenalty, 1, 30);
+      });
     });
 
     setPrefSupport(ns);
     setPrefFame(nf);
-    setRivalSupport(prev=>applyRivalAI(prev));
+    setRivalSupport(nextRivals); // 💡 ペナルティ適用済みのデータをセット
+
     const nt=turn+1;
     setTurn(nt);
     setAp(MAX_AP);
