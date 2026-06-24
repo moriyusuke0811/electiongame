@@ -939,7 +939,7 @@ function GameScreen({ setup, onElection }){
     const fameGain=clamp(0.5+Math.random()*1.0,0,100-fameBefore); // 知名度は0.5〜1.5%しか上がらない
     const newFame=clamp(fameBefore+fameGain,0,100);
     const cap=newFame*0.7;
-    const base=(0.5+Math.random()*0.8)*decayFactor(prefSupport[prefId]||0)*(1+blockMembers*0.2); // 党員バフも0.4→0.2へ
+    const base=(0.5+Math.random()*0.8)*decayFactor(prefSupport[prefId]||0)*(1+blockMembers*0.35); // 党員バフも0.4→0.2へ
     const supGain=clamp(base,0,cap-(prefSupport[prefId]||0));
     setPrefFame(prev=>({...prev,[prefId]:newFame}));
     setPrefSupport(prev=>({...prev,[prefId]:clamp((prev[prefId]||0)+supGain,0,cap)}));
