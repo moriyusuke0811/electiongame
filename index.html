@@ -1507,10 +1507,9 @@ function ElectionScreen({ setup, finalPrefSupport, finalPrefFame, finalRivalSupp
 
   // エンディング判定
     // エンディング判定
-  function getEnding(seats, currentSetup = setup) {
-    // ━━━━ 新党モードのエンディング ━━━━
-    // setupオブジェクト内の isNewParty フラグ、または党のタイプなどで判定
-    if (currentSetup?.isNewParty || currentSetup?.setmode === "new") { 
+  function getEnding(seats, currentSetup = setup){
+    // ━━━━ 🌱 新党設立モードのエンディング (isExisting が false の場合) ━━━━
+    if (!currentSetup?.isExisting) { 
       if (seats >= 20) return {
         title: "🎉 歴史的快挙！新党が国会を席巻",
         body: `${seats}議席を獲得。結党間もない新党が一大勢力となり、既存の既得権益を根底から覆す歴史的な大波乱を起こしました！`,
@@ -1538,7 +1537,7 @@ function ElectionScreen({ setup, finalPrefSupport, finalPrefFame, finalRivalSupp
       };
     }
 
-    // ━━━━ 既存政党モードのエンディング ━━━━
+    // ━━━━ 🏛️ 既存政党モードのエンディング (isExisting が true の場合) ━━━━
     if (seats >= MAJORITY) return {
       title: "🎉 歴史的勝利！政権交代達成！",
       body: `${currentSetup.partyName}が過半数（${MAJORITY}議席）を突破。単独過半数での政権交代が実現しました。新しい時代の幕開けです。`,
