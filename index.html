@@ -195,7 +195,8 @@ function decayFactor(currentPct){
 
 // 無党派層の割合（各県の残り）
 function independentShare(allSupports){ 
-  const total = Object.values(allSupports).reduce((s,v)=>s+v,0);
+  // 文字列の足し算を防ぐため Number() でキャスト
+  const total = Object.values(allSupports).reduce((s,v) => s + Number(v), 0);
   return Math.max(0, 100 - total);
 }
 
@@ -210,16 +211,30 @@ function makeMember(){
   };
 }
 
-// ドント式議席配分（議席消失を防ぐため、同点・ゼロ票時のロジックも安定化）
+// ドント式議席配分（NaN対策と空転防止を強化）
 function dontMethod(parties, totalSeats){
   const seats = Object.fromEntries(parties.map(p=>[p.id,0]));
-  for(let i=0; i<totalSeats; i++){
+  const tSeats = Number(totalSeats) || 0; // 定数が不正な場合のフェイルセーフ
+
+  for(let i=0; i<tSeats; i++){
     let best = null, bestQ = -1;
     parties.forEach(p=>{
-      const q = p.votes / (seats[p.id]+1);
-      // bestQを -1 スタートにしているため、votesが0でも必ずどこかに配分され全議席埋まります
-      if(q > bestQ){ bestQ=q; best=p.id; }
+      // 票数が NaN の場合は 0 として扱う
+      const validVotes = Number.isNaN(Number(p.votes)) ? 0 : Number(p.votes);
+      const q = validVotes / (seats[p.id]+1);
+      
+      // q が NaN でないことを確認してから比較
+      if(q > bestQ && !Number.isNaN(q)){ 
+        bestQ = q; 
+        best = p.id; 
+      }
     });
+    
+    // 全員0票などでbestが決まらなかった場合の救済措置（議席の消滅を絶対防ぐ）
+    if(best === null && parties.length > 0) {
+      best = parties[0].id;
+    }
+    
     if(best) seats[best]++;
   }
   return seats;
@@ -227,45 +242,47 @@ function dontMethod(parties, totalSeats){
 
 // ブロック別PR議席計算（比例代表）
 function calcPRSeats(prefSupport, rivalSupport, playerPartyId, playerFame, rivalFames){
-  // 議席消失を防ぐため、全党を0で初期化
   const totalPR = { [playerPartyId]: 0 };
   RIVALS_DEF.forEach(r => totalPR[r.id] = 0);
 
   BLOCKS.forEach(block=>{
     const prefs = PREFECTURES.filter(p=>p.block===block.id);
-    
-    // 各党のブロック内平均支持率を算出
+    if(prefs.length === 0) return;
+
     const partyAvg = { [playerPartyId]: 0 };
     RIVALS_DEF.forEach(r => partyAvg[r.id] = 0);
 
+    // 全て Number() で明示的に数値変換して集計
     prefs.forEach(p => {
-      partyAvg[playerPartyId] += (prefSupport[p.id] || 0);
+      partyAvg[playerPartyId] += Number(prefSupport[p.id] || 0);
       RIVALS_DEF.forEach(r => {
-        partyAvg[r.id] += ((rivalSupport[r.id]||{})[p.id] || 0);
+        partyAvg[r.id] += Number(((rivalSupport[r.id]||{})[p.id]) || 0);
       });
     });
 
     Object.keys(partyAvg).forEach(pid => partyAvg[pid] /= prefs.length);
 
-    // 支持率の合計と無党派層
     const totalSup = Object.values(partyAvg).reduce((sum, val) => sum + val, 0);
     const indep = Math.max(0, 100 - totalSup);
-    const distributeVotes = indep * 0.8; // 無党派層の8割を分配
+    const distributeVotes = indep * 0.8;
 
-    // 各党の支持率に比例して無党派票（8割）を上乗せ
     const partyVotes = Object.keys(partyAvg).map(pid => {
       let votes = partyAvg[pid];
       if (totalSup > 0) {
         votes += distributeVotes * (partyAvg[pid] / totalSup);
       } else {
-        // 全ての党の支持率が0の場合は均等割り
         votes += distributeVotes / Object.keys(partyAvg).length;
       }
-      return { id: pid, votes: votes };
+      // 同点対策の微小ランダム
+      votes += Math.random() * 0.0001;
+      // 万が一計算が壊れても NaN にしない
+      return { id: pid, votes: Number.isNaN(votes) ? 0 : votes };
     });
 
-    // ブロックごとの定数をドント式で分配
-    const blockSeats = dontMethod(partyVotes, block.prSeats);
+    // 定数プロパティの名前が異なっていても取得できるようにする
+    const prCount = block.prSeats || block.pr || block.seats || 0;
+    const blockSeats = dontMethod(partyVotes, prCount);
+    
     Object.entries(blockSeats).forEach(([pid, s]) => {
       totalPR[pid] += s;
     });
@@ -276,23 +293,20 @@ function calcPRSeats(prefSupport, rivalSupport, playerPartyId, playerFame, rival
 
 // 小選挙区議席計算（各県で1位の党が総取り）
 function calcSMDSeats(prefSupport, rivalSupport, playerPartyId, prefFame, rivalFames){
-  // 議席消失を防ぐため、全党を0で初期化
   const totalSMD = { [playerPartyId]: 0 };
   RIVALS_DEF.forEach(r => totalSMD[r.id] = 0);
 
   PREFECTURES.forEach(pref=>{
-    // 各党の県内支持率
-    const partyPct = { [playerPartyId]: prefSupport[pref.id] || 0 };
+    // 全て Number() で明示的に数値変換
+    const partyPct = { [playerPartyId]: Number(prefSupport[pref.id] || 0) };
     RIVALS_DEF.forEach(r=>{
-      partyPct[r.id] = ((rivalSupport[r.id]||{})[pref.id])||0;
+      partyPct[r.id] = Number(((rivalSupport[r.id]||{})[pref.id])||0);
     });
 
-    // 支持率の合計と無党派層
     const totalSup = Object.values(partyPct).reduce((sum, val) => sum + val, 0);
     const indep = Math.max(0, 100 - totalSup);
-    const distributeVotes = indep * 0.8; // 無党派層の8割を分配
+    const distributeVotes = indep * 0.8;
 
-    // 各党の支持率に比例して無党派票（8割）を上乗せ
     const finalPcts = Object.keys(partyPct).map(pid => {
       let pct = partyPct[pid];
       if (totalSup > 0) {
@@ -300,19 +314,22 @@ function calcSMDSeats(prefSupport, rivalSupport, playerPartyId, prefFame, rivalF
       } else {
         pct += distributeVotes / Object.keys(partyPct).length;
       }
-      // 完全同点による計算エラー（勝者不在）を防ぐための極小のランダム値
       pct += Math.random() * 0.0001; 
-      return { id: pid, pct: pct };
+      
+      // 万が一の NaN を 0 に変換
+      return { id: pid, pct: Number.isNaN(pct) ? 0 : pct };
     });
 
-    // 小選挙区は一番得票率の高い党がその県の議席(pref.smd)を総取り
+    // ここで NaN が無いことが保証されているため、正常に勝敗が決まる
     const winner = finalPcts.reduce((a,b) => a.pct > b.pct ? a : b);
-    totalSMD[winner.id] += pref.smd;
+    
+    // 定数プロパティの名前が異なっていても取得できるようにする
+    const smdCount = pref.smd || pref.smdSeats || pref.seats || 0;
+    totalSMD[winner.id] += Number(smdCount);
   });
 
   return totalSMD;
 }
-
 // ════════════════════════════════════════════════════════════
 // SVG JAPAN MAP (11ブロック)
 // ════════════════════════════════════════════════════════════
@@ -935,30 +952,30 @@ function GameScreen({ setup, onElection }){
   }
 
   function applyRivalAI(rs){
-    const next={...rs};
-    rivalDefs.forEach(r=>{
-      next[r.id]={...(next[r.id]||{})};
-      // 全47都道府県でそれぞれ判定を行う
-      PREFECTURES.forEach(pref=>{
-        const cur = next[r.id][pref.id] || 10;
-        
-        // aggression（攻撃性）に応じて各地で支持率を伸ばす
-        if(Math.random() < r.aggression * 0.4){
-          // 上昇幅にばらつきを持たせる（基本は0〜1.5%、たまに+1.5%のボーナス）
-          let gain = Math.random() * 1.5;
-          if(Math.random() < 0.2) gain += 1.5; // 20%の確率でその地域に注力したような大きな伸び
+  const next={...rs};
+  rivalDefs.forEach(r=>{
+    next[r.id]={...(next[r.id]||{})};
+    // 全47都道府県でそれぞれ判定を行う
+    PREFECTURES.forEach(pref=>{
+      const cur = next[r.id][pref.id] || 10;
+      
+      // aggression（攻撃性）に応じて各地で支持率を伸ばす
+      if(Math.random() < r.aggression * 0.4){
+        // 上昇幅にばらつきを持たせる（基本は0〜1.5%、たまに+1.5%のボーナス）
+        let gain = Math.random() * 1.5;
+        if(Math.random() < 0.2) gain += 1.5; // 20%の確率でその地域に注力したような大きな伸び
 
-          // 上限を30（30%）に調整
-          next[r.id][pref.id] = clamp(cur + gain, 1, 30);
-        } else {
-          // 成長判定から漏れた地域は、支持率が微減（自然減）するようにする
-          // これにより、全国一律に育つのではなく、地域ごとの「ばらつき」が強調される
-          next[r.id][pref.id] = clamp(cur - Math.random() * 0.4, 1, 30);
-        }
-      });
+        // 上限を30（30%）に調整
+        next[r.id][pref.id] = clamp(cur + gain, 1, 30);
+      } else {
+        // 成長判定から漏れた地域は、支持率が微減（自然減）するようにする
+        // これにより、全国一律に育つのではなく、地域ごとの「ばらつき」が強調される
+        next[r.id][pref.id] = clamp(cur - Math.random() * 0.4, 1, 30);
+      }
     });
-    return next;
-  }
+  });
+  return next;
+}
 
   function nextTurn(){
     if(turn>=TOTAL_TURNS){ onElection(prefSupport,prefFame,rivalSupport); return; }
@@ -1395,7 +1412,7 @@ function ElectionScreen({ setup, finalPrefSupport, finalPrefFame, finalRivalSupp
   // エンディング判定
   function getEnding(seats){
     // ━━━━ 新党モードのエンディング ━━━━
-    if(){ // ※セットアップ時の新党判定フラグ（必要に応じて条件式を調整してください）
+    if(setup.isNewParty){ // ※セットアップ時の新党判定フラグ（必要に応じて条件式を調整してください）
       if(seats >= 20) return {
         title: "🎉 歴史的快挙！新党が国会を席巻",
         body: `${seats}議席を獲得。結党間もない新党が一大勢力となり、既存の政治を根底から覆す歴史的な大波乱を起こしました！`,
