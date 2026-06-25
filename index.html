@@ -1177,7 +1177,7 @@ function GameScreen({ setup, onElection }){
     const supportBonus = 1.0 + (avgSupport * 0.1); 
     
     // 💡 基本の集金力を計算（ランダム要素）
-    const baseEarn = 10 + Math.floor(Math.random() * 40); // 基本は10〜50万円
+    const baseEarn = 10 + Math.floor(Math.random() * 20); // 基本は10〜30万円
     
     // 💡 倍率を掛け合わせて最終的な獲得資金を決定
     const earn = Math.round(baseEarn * supportBonus);
