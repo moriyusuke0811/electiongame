@@ -1396,10 +1396,10 @@ function GameScreen({ setup, onElection }){
           <div style={{padding:7,flex:1,overflowY:"auto",display:"flex",flexDirection:"column",gap:5}}>
             <p style={{fontSize:9,color:"#4b5563",letterSpacing:2,marginBottom:2}}>全国アクション</p>
             {[
-              {label:"🌐 ネット広告",sub:"-60万円 / 全国知名度・支持↑",fn:doNetAd,col:"#3b82f6",disabled:ap<=0||funds<60},
+              {label:"🌐 ネット広告",sub:"-${nextCost}万円 / 全国知名度・支持↑",fn:doNetAd,col:"#3b82f6",disabled:ap<=0||funds<60},
               {label:"📢 政策発表",sub:"-30万円 / 思想一致地域↑",fn:doPolicy,col:"#8b5cf6",disabled:ap<=0||funds<30},
               {label:"📰 記者会見",sub:"-20万円 / 全国知名度↑",fn:doPressBriefing,col:"#06b6d4",disabled:ap<=0||funds<20},
-              {label:"💰 資金パーティー",sub:"+40〜100万円",fn:doFundraise,col:"#eab308",disabled:ap<=0},
+              {label:"💰 資金パーティー",sub:"+支持率に応じて上昇",fn:doFundraise,col:"#eab308",disabled:ap<=0},
             ].map(a=>(
               <button key={a.label} onClick={a.fn} disabled={a.disabled}
                 style={{width:"100%",padding:"7px 8px",borderRadius:7,border:`1px solid ${a.disabled?"#374151":a.col}`,background:a.disabled?"transparent":a.col+"18",color:a.disabled?"#6b7280":a.col,textAlign:"left",opacity:a.disabled?0.3:1}}>
