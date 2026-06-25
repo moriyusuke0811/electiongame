@@ -910,6 +910,7 @@ function SetupScreen({ onStart }){
 // GAME SCREEN
 // ════════════════════════════════════════════════════════════
 function GameScreen({ setup, onElection }){
+  const [netAdCost, setNetAdCost] = useState(100); // 💡 追加：ネット広告の現在価格（初期値100万円）
   const [turn, setTurn] = useState(1);
   const [ap, setAp] = useState(MAX_AP); // 残り行動ポイント
   const [funds, setFunds] = useState(500);
@@ -1135,20 +1136,32 @@ function GameScreen({ setup, onElection }){
 
   function doNetAd(){
     if(ap<=0){ showNotif("この週の行動回数が上限です","error"); return; }
-    if(funds<60){ showNotif("資金不足（60万円必要）","error"); return; }
+    if(funds<netAdCost){ showNotif(`資金不足（${netAdCost}万円必要）`,"error"); return; } // 💡 変数に変更
+    
     const newFame={...prefFame};
     const newSup={...prefSupport};
+    
     PREFECTURES.forEach(p=>{
-      newFame[p.id]=clamp((newFame[p.id]||0)+0.5+Math.random()*0.5,0,100);
+      // 💡 効果強化：全国知名度の上昇量を約4倍に強化（2.0〜4.0%上昇）
+      const fameGain = 2.0 + Math.random() * 2.0;
+      newFame[p.id]=clamp((newFame[p.id]||0)+fameGain,0,100);
+      
       const cap=newFame[p.id]*0.7;
-      const g=0.4*decayFactor(newSup[p.id]||0);
+      // 💡 効果強化：支持率の上昇量も強化
+      const g=(0.8 + Math.random() * 0.4) * decayFactor(newSup[p.id]||0);
       newSup[p.id]=clamp((newSup[p.id]||0)+g,0,cap);
     });
+    
     setPrefFame(newFame);
     setPrefSupport(newSup);
-    setFunds(f=>f-60);
-    addLog(`ネット広告配信 -60万円 全国知名度・支持率↑`);
-    showNotif("ネット広告が全国に拡散！","success");
+    setFunds(f=>f-netAdCost); // 💡 現在の価格分を消費
+    
+    // 💡 実行するたびに次回以降のコストを20万円上乗せ（値上がり）
+    const nextCost = netAdCost + 20;
+    setNetAdCost(nextCost);
+    
+    addLog(`ネット広告配信 -${netAdCost}万円 全国知名度・支持率が大アップ！(次回費用: ${nextCost}万円)`);
+    showNotif("ネット広告が全国に大拡散！","success");
     useAP(1);
   }
 
