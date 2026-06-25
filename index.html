@@ -757,10 +757,10 @@ function SetupScreen({ onStart }){
 
   function handleNewStart(){
     if(!partyName.trim()||!homeBlock) return;
-    const {prefSupport,prefFame,rivalSupport}=buildInitialState(partyName,partyColor,econ,diplo,social,8,homeBlock);
+    const {prefSupport,prefFame,rivalSupport}=buildInitialState(partyName,partyColor,econ,diplo,social,0,homeBlock);
     onStart({
       partyName:partyName.trim(), partyColor, econ, diplo, social,
-      homeBlock, initFame:8,
+      homeBlock, initFame:0,
       prefSupport, prefFame, rivalSupport,
       rivalDefs:RIVALS_DEF.map(r=>({...r})),
       isExisting:false,
@@ -1171,10 +1171,20 @@ function GameScreen({ setup, onElection }){
 
   function doFundraise(){
     if(ap<=0){ showNotif("この週の行動回数が上限です","error"); return; }
-    const earn=10+Math.floor(Math.random()*50);
+    
+    // 💡 全国平均支持率（avgSupport）に応じた倍率を計算
+    // 支持率0%でも最低1.0倍、支持率30%なら4.0倍、支持率50%なら6.0倍のように成長
+    const supportBonus = 1.0 + (avgSupport * 0.1); 
+    
+    // 💡 基本の集金力を計算（ランダム要素）
+    const baseEarn = 10 + Math.floor(Math.random() * 40); // 基本は10〜50万円
+    
+    // 💡 倍率を掛け合わせて最終的な獲得資金を決定
+    const earn = Math.round(baseEarn * supportBonus);
+    
     setFunds(f=>f+earn);
-    addLog(`資金パーティー +${earn}万円`);
-    showNotif(`${earn}万円調達！`,"info");
+    addLog(`資金パーティー開催(党支持率:${avgSupport}%) +${earn}万円`);
+    showNotif(`${earn}万円調達！（支持率ボーナス適用）`,"info");
     useAP(1);
   }
 
